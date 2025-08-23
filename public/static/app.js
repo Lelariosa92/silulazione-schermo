@@ -28,6 +28,15 @@ class LEDMockupApp {
             rotation: 0,
             perspective: 0
         };
+
+        // Trasformazioni video
+        this.videoTransform = {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0
+        };
         
         // Coordinate Corner-Pin (px foto)
         this.cornerPinPoints = [
@@ -121,6 +130,17 @@ class LEDMockupApp {
         document.getElementById('exportBtn').addEventListener('click', this.startExport.bind(this));
         document.getElementById('copyMatrixBtn').addEventListener('click', this.copyHomographyMatrix.bind(this));
         document.getElementById('testVideoBtn').addEventListener('click', this.testVideoRendering.bind(this));
+        
+        // Video transformation controls
+        document.getElementById('videoPosX').addEventListener('input', this.updateVideoTransform.bind(this));
+        document.getElementById('videoPosY').addEventListener('input', this.updateVideoTransform.bind(this));
+        document.getElementById('videoScaleX').addEventListener('input', this.updateVideoTransform.bind(this));
+        document.getElementById('videoScaleY').addEventListener('input', this.updateVideoTransform.bind(this));
+        
+        // Video control buttons
+        document.getElementById('centerVideoBtn').addEventListener('click', this.centerVideo.bind(this));
+        document.getElementById('fitVideoBtn').addEventListener('click', this.fitVideo.bind(this));
+        document.getElementById('resetVideoBtn').addEventListener('click', this.resetVideoTransform.bind(this));
     }
 
     /**
@@ -203,6 +223,9 @@ class LEDMockupApp {
             document.getElementById('videoWidth').value = video.videoWidth;
             document.getElementById('videoHeight').value = video.videoHeight;
             
+            // Inizializza trasformazione video
+            this.centerVideo();
+            
             // Inizializza corner points al centro del canvas
             this.resetCornerPoints();
             this.updateVertexInputs();
@@ -212,6 +235,10 @@ class LEDMockupApp {
             video.currentTime = 0;
             
             console.log(`✅ Video caricato: ${video.videoWidth}×${video.videoHeight}, durata: ${video.duration.toFixed(1)}s`);
+            
+            // Attiva tool move per default per permettere trascinamento
+            this.setActiveTool('move');
+            
             this.render();
         };
 
@@ -327,9 +354,38 @@ class LEDMockupApp {
         
         switch (this.activeTool) {
             case 'move':
-                if (!this.backgroundLocked && this.backgroundImage) {
+                // Controlla se il mouse è sopra il video
+                if (this.videoElement && this.isMouseOverVideo(this.dragStartPos.x, this.dragStartPos.y)) {
+                    // Muovi video
+                    this.videoTransform.x += deltaX;
+                    this.videoTransform.y += deltaY;
+                    this.updateVideoControls();
+                    this.render();
+                } else if (!this.backgroundLocked && this.backgroundImage) {
+                    // Muovi sfondo
                     this.backgroundTransform.x += deltaX;
                     this.backgroundTransform.y += deltaY;
+                    this.render();
+                }
+                break;
+                
+            case 'scale':
+                if (this.videoElement && this.isMouseOverVideo(this.dragStartPos.x, this.dragStartPos.y)) {
+                    // Scala video
+                    const scaleFactor = 1 + deltaY * 0.01;
+                    this.videoTransform.scaleX = Math.max(0.1, Math.min(3, this.videoTransform.scaleX * scaleFactor));
+                    this.videoTransform.scaleY = Math.max(0.1, Math.min(3, this.videoTransform.scaleY * scaleFactor));
+                    this.updateVideoControls();
+                    this.render();
+                }
+                break;
+                
+            case 'rotate':
+                if (this.videoElement && this.isMouseOverVideo(this.dragStartPos.x, this.dragStartPos.y)) {
+                    // Ruota video
+                    this.videoTransform.rotation = (this.videoTransform.rotation + deltaX) % 360;
+                    if (this.videoTransform.rotation < 0) this.videoTransform.rotation += 360;
+                    this.updateVideoControls();
                     this.render();
                 }
                 break;
@@ -619,77 +675,136 @@ class LEDMockupApp {
     }
 
     /**
-     * Render video overlay con trasformazione prospettiva
+     * Render video overlay con trasformazione
      */
     renderVideoOverlay() {
-        if (!this.videoElement || !this.cornerPinPoints || this.cornerPinPoints.length !== 4) {
-            return;
-        }
+        if (!this.videoElement) return;
 
         this.ctx.save();
         
         try {
-            // Converti corner points da coordinate foto a coordinate canvas
-            const canvasCorners = this.cornerPinPoints.map(point => 
-                this.photoToCanvasCoords(point.x, point.y)
-            );
-
-            // Crea clipping path del quadrilatero
-            this.ctx.beginPath();
-            this.ctx.moveTo(canvasCorners[0].x, canvasCorners[0].y);
-            for (let i = 1; i < canvasCorners.length; i++) {
-                this.ctx.lineTo(canvasCorners[i].x, canvasCorners[i].y);
-            }
-            this.ctx.closePath();
-            this.ctx.clip();
-
-            // Calcola bounding box del quadrilatero
-            const minX = Math.min(...canvasCorners.map(p => p.x));
-            const minY = Math.min(...canvasCorners.map(p => p.y));
-            const maxX = Math.max(...canvasCorners.map(p => p.x));
-            const maxY = Math.max(...canvasCorners.map(p => p.y));
-            
-            const quadWidth = maxX - minX;
-            const quadHeight = maxY - minY;
-
-            // Disegna il video scalato al bounding box
-            if (this.videoElement.videoWidth > 0 && this.videoElement.videoHeight > 0) {
-                // Assicurati che il video sia al frame corrente
-                if (this.videoElement.readyState >= 2) {
-                    this.ctx.drawImage(
-                        this.videoElement,
-                        minX,
-                        minY,
-                        quadWidth,
-                        quadHeight
-                    );
-                } else {
-                    // Video non ancora pronto, mostra placeholder colorato
-                    this.ctx.fillStyle = 'rgba(59, 130, 246, 0.7)'; // Blue placeholder
-                    this.ctx.fillRect(minX, minY, quadWidth, quadHeight);
-                    
-                    // Testo placeholder
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.font = '14px Arial';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillText(
-                        'Video Loading...',
-                        minX + quadWidth / 2,
-                        minY + quadHeight / 2
-                    );
-                }
+            // Modalità Corner-Pin o Trasformazione Diretta
+            if (this.activeTool === 'corner-pin' && this.cornerPinPoints && this.cornerPinPoints.length === 4) {
+                this.renderVideoCornerPin();
             } else {
-                // Video senza dimensioni, usa placeholder
-                this.renderVideoPlaceholder(minX, minY, quadWidth, quadHeight);
+                this.renderVideoDirect();
             }
 
         } catch (error) {
             console.warn('Errore rendering video overlay:', error);
-            // Fallback: disegna solo il contorno
-            this.renderVideoOutline();
+            this.renderVideoFallback();
         }
         
         this.ctx.restore();
+    }
+
+    /**
+     * Render video con corner-pin (modalità prospettica)
+     */
+    renderVideoCornerPin() {
+        // Converti corner points da coordinate foto a coordinate canvas
+        const canvasCorners = this.cornerPinPoints.map(point => 
+            this.photoToCanvasCoords(point.x, point.y)
+        );
+
+        // Crea clipping path del quadrilatero
+        this.ctx.beginPath();
+        this.ctx.moveTo(canvasCorners[0].x, canvasCorners[0].y);
+        for (let i = 1; i < canvasCorners.length; i++) {
+            this.ctx.lineTo(canvasCorners[i].x, canvasCorners[i].y);
+        }
+        this.ctx.closePath();
+        this.ctx.clip();
+
+        // Calcola bounding box del quadrilatero
+        const minX = Math.min(...canvasCorners.map(p => p.x));
+        const minY = Math.min(...canvasCorners.map(p => p.y));
+        const maxX = Math.max(...canvasCorners.map(p => p.x));
+        const maxY = Math.max(...canvasCorners.map(p => p.y));
+        
+        const quadWidth = maxX - minX;
+        const quadHeight = maxY - minY;
+
+        // Disegna il video scalato al bounding box
+        if (this.videoElement.readyState >= 2) {
+            this.ctx.drawImage(
+                this.videoElement,
+                minX,
+                minY,
+                quadWidth,
+                quadHeight
+            );
+        } else {
+            this.renderVideoPlaceholder(minX, minY, quadWidth, quadHeight);
+        }
+    }
+
+    /**
+     * Render video con trasformazione diretta (modalità normale)
+     */
+    renderVideoDirect() {
+        if (this.videoElement.readyState < 2) {
+            this.renderVideoPlaceholder(
+                this.videoTransform.x,
+                this.videoTransform.y,
+                this.videoElement.videoWidth * this.videoTransform.scaleX,
+                this.videoElement.videoHeight * this.videoTransform.scaleY
+            );
+            return;
+        }
+
+        // Applica trasformazioni
+        this.ctx.translate(
+            this.videoTransform.x + (this.videoElement.videoWidth * this.videoTransform.scaleX) / 2,
+            this.videoTransform.y + (this.videoElement.videoHeight * this.videoTransform.scaleY) / 2
+        );
+        
+        if (this.videoTransform.rotation !== 0) {
+            this.ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
+        }
+        
+        this.ctx.scale(this.videoTransform.scaleX, this.videoTransform.scaleY);
+
+        // Disegna video centrato
+        this.ctx.drawImage(
+            this.videoElement,
+            -this.videoElement.videoWidth / 2,
+            -this.videoElement.videoHeight / 2,
+            this.videoElement.videoWidth,
+            this.videoElement.videoHeight
+        );
+
+        // Bordo per visualizzazione
+        this.ctx.strokeStyle = '#3b82f6';
+        this.ctx.lineWidth = 2 / Math.min(this.videoTransform.scaleX, this.videoTransform.scaleY);
+        this.ctx.strokeRect(
+            -this.videoElement.videoWidth / 2,
+            -this.videoElement.videoHeight / 2,
+            this.videoElement.videoWidth,
+            this.videoElement.videoHeight
+        );
+    }
+
+    /**
+     * Render fallback in caso di errori
+     */
+    renderVideoFallback() {
+        this.ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+        this.ctx.fillRect(
+            this.videoTransform.x,
+            this.videoTransform.y,
+            200,
+            150
+        );
+        
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '14px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            '❌ Errore Video',
+            this.videoTransform.x + 100,
+            this.videoTransform.y + 75
+        );
     }
 
     /**
@@ -916,32 +1031,111 @@ class LEDMockupApp {
                 videoFile: this.videoFile,
                 cornerPoints: this.cornerPinPoints,
                 homographyMatrix: this.homographyMatrix,
+                videoTransform: this.videoTransform,
+                canvasWidth: this.canvas.width,
+                canvasHeight: this.canvas.height,
+                backgroundTransform: this.backgroundTransform,
                 outputSettings: VideoExporter.getWhatsAppOptimizedSettings({
-                    width: this.videoElement.videoWidth,
-                    height: this.videoElement.videoHeight,
+                    width: this.canvas.width,
+                    height: this.canvas.height,
                     fps: 25,
-                    duration: this.videoElement.duration
+                    duration: this.videoElement ? this.videoElement.duration : 5
                 })
             };
             
-            // Esegui export
-            const result = await exporter.exportVideo(exportConfig);
-            
-            // Valida compatibilità WhatsApp
-            const validation = await VideoExporter.validateWhatsAppCompatibility(result.video);
-            
-            // Mostra risultati QC
-            this.displayQCResults(result.qcResult);
-            
-            // Download file
-            this.downloadVideoFile(result.video, validation);
-            
-            statusText.textContent = `Export completato! File: ${validation.sizeFormatted}`;
-            
-            // Nascondi pannello dopo 5 secondi
-            setTimeout(() => {
-                exportPanel.style.display = 'none';
-            }, 5000);
+            // Per ora, esporta frame corrente come immagine
+            if (this.backgroundImage || this.videoElement) {
+                statusText.textContent = 'Generazione immagine composite...';
+                progressBar.style.width = '50%';
+                
+                // Crea canvas per export
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = this.canvas.width;
+                exportCanvas.height = this.canvas.height;
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                // Renderizza composite
+                exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+                
+                // Sfondo
+                if (this.backgroundImage) {
+                    const { x, y, scale } = this.backgroundTransform;
+                    exportCtx.save();
+                    exportCtx.translate(x, y);
+                    exportCtx.scale(scale, scale);
+                    exportCtx.drawImage(this.backgroundImage, 0, 0);
+                    exportCtx.restore();
+                }
+                
+                // Video overlay
+                if (this.videoElement && this.videoElement.readyState >= 2) {
+                    exportCtx.save();
+                    
+                    if (this.activeTool === 'corner-pin') {
+                        // Render corner-pin mode
+                        const canvasCorners = this.cornerPinPoints.map(point => 
+                            this.photoToCanvasCoords(point.x, point.y)
+                        );
+                        
+                        exportCtx.beginPath();
+                        exportCtx.moveTo(canvasCorners[0].x, canvasCorners[0].y);
+                        for (let i = 1; i < canvasCorners.length; i++) {
+                            exportCtx.lineTo(canvasCorners[i].x, canvasCorners[i].y);
+                        }
+                        exportCtx.closePath();
+                        exportCtx.clip();
+                        
+                        const minX = Math.min(...canvasCorners.map(p => p.x));
+                        const minY = Math.min(...canvasCorners.map(p => p.y));
+                        const maxX = Math.max(...canvasCorners.map(p => p.x));
+                        const maxY = Math.max(...canvasCorners.map(p => p.y));
+                        
+                        exportCtx.drawImage(this.videoElement, minX, minY, maxX - minX, maxY - minY);
+                    } else {
+                        // Render direct mode
+                        exportCtx.translate(
+                            this.videoTransform.x + (this.videoElement.videoWidth * this.videoTransform.scaleX) / 2,
+                            this.videoTransform.y + (this.videoElement.videoHeight * this.videoTransform.scaleY) / 2
+                        );
+                        
+                        if (this.videoTransform.rotation !== 0) {
+                            exportCtx.rotate(this.videoTransform.rotation * Math.PI / 180);
+                        }
+                        
+                        exportCtx.scale(this.videoTransform.scaleX, this.videoTransform.scaleY);
+                        exportCtx.drawImage(
+                            this.videoElement,
+                            -this.videoElement.videoWidth / 2,
+                            -this.videoElement.videoHeight / 2
+                        );
+                    }
+                    
+                    exportCtx.restore();
+                }
+                
+                progressBar.style.width = '90%';
+                statusText.textContent = 'Generazione file download...';
+                
+                // Converti a blob e download
+                exportCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `led-mockup-frame-${Date.now()}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    progressBar.style.width = '100%';
+                    statusText.textContent = `Immagine esportata! Dimensioni: ${(blob.size / 1024).toFixed(1)} KB`;
+                    
+                    setTimeout(() => {
+                        exportPanel.style.display = 'none';
+                    }, 3000);
+                }, 'image/png', 0.95);
+                
+            } else {
+                throw new Error('Carica almeno sfondo o video per esportare');
+            }
             
         } catch (error) {
             statusText.textContent = 'Errore durante export: ' + error.message;
@@ -1221,6 +1415,125 @@ class LEDMockupApp {
             }
         }, 5000);
     }
+
+    /**
+     * Aggiorna trasformazione video dai controlli
+     */
+    updateVideoTransform() {
+        if (!this.videoElement) return;
+
+        this.videoTransform.x = parseInt(document.getElementById('videoPosX').value) || 0;
+        this.videoTransform.y = parseInt(document.getElementById('videoPosY').value) || 0;
+        this.videoTransform.scaleX = parseFloat(document.getElementById('videoScaleX').value) || 1;
+        this.videoTransform.scaleY = parseFloat(document.getElementById('videoScaleY').value) || 1;
+        this.videoTransform.rotation = parseInt(document.getElementById('rotationSlider').value) || 0;
+
+        // Aggiorna labels
+        document.getElementById('videoScaleXValue').textContent = Math.round(this.videoTransform.scaleX * 100) + '%';
+        document.getElementById('videoScaleYValue').textContent = Math.round(this.videoTransform.scaleY * 100) + '%';
+        document.getElementById('rotationValue').textContent = this.videoTransform.rotation + '°';
+
+        console.log('Video transform updated:', this.videoTransform);
+        this.render();
+    }
+
+    /**
+     * Centra video nel canvas
+     */
+    centerVideo() {
+        if (!this.videoElement) return;
+
+        this.videoTransform.x = (this.canvas.width - this.videoElement.videoWidth * this.videoTransform.scaleX) / 2;
+        this.videoTransform.y = (this.canvas.height - this.videoElement.videoHeight * this.videoTransform.scaleY) / 2;
+
+        this.updateVideoControls();
+        this.render();
+    }
+
+    /**
+     * Adatta video al canvas
+     */
+    fitVideo() {
+        if (!this.videoElement) return;
+
+        const scaleX = this.canvas.width / this.videoElement.videoWidth;
+        const scaleY = this.canvas.height / this.videoElement.videoHeight;
+        const scale = Math.min(scaleX, scaleY) * 0.8; // 80% per margine
+
+        this.videoTransform.scaleX = scale;
+        this.videoTransform.scaleY = scale;
+        this.videoTransform.x = (this.canvas.width - this.videoElement.videoWidth * scale) / 2;
+        this.videoTransform.y = (this.canvas.height - this.videoElement.videoHeight * scale) / 2;
+
+        this.updateVideoControls();
+        this.render();
+    }
+
+    /**
+     * Reset trasformazione video
+     */
+    resetVideoTransform() {
+        if (!this.videoElement) return;
+
+        this.videoTransform = {
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0
+        };
+
+        this.updateVideoControls();
+        this.render();
+    }
+
+    /**
+     * Aggiorna controlli UI con valori correnti
+     */
+    updateVideoControls() {
+        document.getElementById('videoPosX').value = Math.round(this.videoTransform.x);
+        document.getElementById('videoPosY').value = Math.round(this.videoTransform.y);
+        document.getElementById('videoScaleX').value = this.videoTransform.scaleX;
+        document.getElementById('videoScaleY').value = this.videoTransform.scaleY;
+        document.getElementById('rotationSlider').value = this.videoTransform.rotation;
+
+        document.getElementById('videoScaleXValue').textContent = Math.round(this.videoTransform.scaleX * 100) + '%';
+        document.getElementById('videoScaleYValue').textContent = Math.round(this.videoTransform.scaleY * 100) + '%';
+        document.getElementById('rotationValue').textContent = this.videoTransform.rotation + '°';
+    }
+}
+
+    /**
+     * Verifica se il mouse è sopra il video
+     */
+    isMouseOverVideo(x, y) {
+        if (!this.videoElement) return false;
+
+        const videoLeft = this.videoTransform.x;
+        const videoTop = this.videoTransform.y;
+        const videoRight = videoLeft + (this.videoElement.videoWidth * this.videoTransform.scaleX);
+        const videoBottom = videoTop + (this.videoElement.videoHeight * this.videoTransform.scaleY);
+
+        return x >= videoLeft && x <= videoRight && y >= videoTop && y <= videoBottom;
+    }
+
+    /**
+     * Aggiorna cursor canvas in base a posizione mouse
+     */
+    updateCanvasCursorForPosition(x, y) {
+        if (this.videoElement && this.isMouseOverVideo(x, y)) {
+            const cursors = {
+                'move': 'grab',
+                'scale': 'nw-resize', 
+                'rotate': 'crosshair',
+                'corner-pin': 'crosshair',
+                'select': 'pointer'
+            };
+            this.canvas.style.cursor = cursors[this.activeTool] || 'pointer';
+        } else {
+            this.updateCanvasCursor();
+        }
+    }
 }
 
 // Inizializza applicazione quando DOM è pronto
@@ -1235,6 +1548,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('snapBtn').addEventListener('click', function() {
         this.classList.toggle('active');
+    });
+    
+    // Mouse move per cursor dinamico
+    document.getElementById('mainCanvas').addEventListener('mousemove', (e) => {
+        if (!window.ledMockupApp.isDragging) {
+            const rect = window.ledMockupApp.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            window.ledMockupApp.updateCanvasCursorForPosition(x, y);
+        }
     });
     
     // Resize canvas on window resize

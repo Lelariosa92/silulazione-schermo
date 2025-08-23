@@ -262,11 +262,35 @@ app.get('/', (c) => {
                             <div class="grid grid-cols-2 gap-2 text-sm">
                                 <div>
                                     <label class="block text-gray-600">Larghezza (px):</label>
-                                    <input type="number" id="videoWidth" class="w-full border rounded px-2 py-1" value="0">
+                                    <input type="number" id="videoWidth" class="w-full border rounded px-2 py-1" value="0" readonly>
                                 </div>
                                 <div>
                                     <label class="block text-gray-600">Altezza (px):</label>
-                                    <input type="number" id="videoHeight" class="w-full border rounded px-2 py-1" value="0">
+                                    <input type="number" id="videoHeight" class="w-full border rounded px-2 py-1" value="0" readonly>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <label class="block text-gray-600">Pos X:</label>
+                                    <input type="number" id="videoPosX" class="w-full border rounded px-2 py-1" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Pos Y:</label>
+                                    <input type="number" id="videoPosY" class="w-full border rounded px-2 py-1" value="0" step="1">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <label class="block text-gray-600">Scala X:</label>
+                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="3" step="0.1" value="1">
+                                    <span id="videoScaleXValue">100%</span>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Scala Y:</label>
+                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="3" step="0.1" value="1">
+                                    <span id="videoScaleYValue">100%</span>
                                 </div>
                             </div>
                             
@@ -274,6 +298,18 @@ app.get('/', (c) => {
                                 <label class="block text-gray-600 text-sm">Rotazione (°):</label>
                                 <input type="range" id="rotationSlider" class="w-full" min="0" max="360" value="0">
                                 <span id="rotationValue">0°</span>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button id="centerVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
+                                    <i class="fas fa-crosshairs mr-1"></i>Centra
+                                </button>
+                                <button id="fitVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
+                                    <i class="fas fa-expand-arrows-alt mr-1"></i>Adatta
+                                </button>
+                                <button id="resetVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
+                                    <i class="fas fa-undo mr-1"></i>Reset
+                                </button>
                             </div>
 
                             <div>
