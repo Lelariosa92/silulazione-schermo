@@ -351,6 +351,7 @@ app.get('/', (c) => {
         <!-- JavaScript Libraries -->
         <script src="/static/math-utils.js"></script>
         <script src="/static/video-export.js"></script>
+        <script src="/static/demo-helper.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>

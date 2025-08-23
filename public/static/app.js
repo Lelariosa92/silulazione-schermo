@@ -491,6 +491,11 @@ class LEDMockupApp {
         // Pulisci canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // Render background pattern se nessuna immagine caricata
+        if (!this.backgroundImage) {
+            this.renderEmptyBackground();
+        }
+        
         // Render sfondo
         if (this.backgroundImage) {
             this.renderBackground();
@@ -510,6 +515,46 @@ class LEDMockupApp {
         if (document.getElementById('gridBtn').classList.contains('active')) {
             this.renderGrid();
         }
+    }
+
+    /**
+     * Render background pattern vuoto
+     */
+    renderEmptyBackground() {
+        // Sfondo a scacchiera per indicare trasparenza
+        this.ctx.save();
+        
+        const squareSize = 20;
+        const lightColor = '#f8fafc';
+        const darkColor = '#e2e8f0';
+        
+        for (let x = 0; x < this.canvas.width; x += squareSize) {
+            for (let y = 0; y < this.canvas.height; y += squareSize) {
+                const isEven = (Math.floor(x / squareSize) + Math.floor(y / squareSize)) % 2 === 0;
+                this.ctx.fillStyle = isEven ? lightColor : darkColor;
+                this.ctx.fillRect(x, y, squareSize, squareSize);
+            }
+        }
+        
+        // Testo istruzioni al centro
+        this.ctx.fillStyle = '#6b7280';
+        this.ctx.font = '16px -apple-system, sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            'Carica una foto di sfondo per iniziare',
+            this.canvas.width / 2,
+            this.canvas.height / 2 - 10
+        );
+        
+        this.ctx.font = '14px -apple-system, sans-serif';
+        this.ctx.fillStyle = '#9ca3af';
+        this.ctx.fillText(
+            'Click su "Importa Foto Sfondo" qui sotto',
+            this.canvas.width / 2,
+            this.canvas.height / 2 + 15
+        );
+        
+        this.ctx.restore();
     }
 
     /**
