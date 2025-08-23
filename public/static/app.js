@@ -731,7 +731,7 @@ class LEDMockupApp {
                 alert('Progetto importato con successo!');
                 
             } catch (error) {
-                alert('Errore nell\\'importazione del progetto: ' + error.message);
+                alert('Errore nell\'importazione del progetto: ' + error.message);
             }
         };
         reader.readAsText(file);

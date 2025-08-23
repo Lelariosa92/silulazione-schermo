@@ -45,6 +45,19 @@ app.get('/', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>
+            /* Stili critici per il canvas */
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            
+            #mainCanvas {
+                border-radius: 8px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                background: #f8fafc;
+                border: 2px solid #e5e7eb;
+            }
+        </style>
+        <style>
             .canvas-container {
                 position: relative;
                 border: 2px solid #e5e7eb;
@@ -348,6 +361,49 @@ app.get('/', (c) => {
             </div>
         </div>
 
+        <!-- Canvas inizializzazione immediata -->
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('mainCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                
+                // Disegna pattern di sfondo immediatamente
+                const squareSize = 20;
+                const lightColor = '#f8fafc';
+                const darkColor = '#e2e8f0';
+                
+                for (let x = 0; x < canvas.width; x += squareSize) {
+                    for (let y = 0; y < canvas.height; y += squareSize) {
+                        const isEven = (Math.floor(x / squareSize) + Math.floor(y / squareSize)) % 2 === 0;
+                        ctx.fillStyle = isEven ? lightColor : darkColor;
+                        ctx.fillRect(x, y, squareSize, squareSize);
+                    }
+                }
+                
+                // Testo istruzioni
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '16px -apple-system, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                    'Canvas LED Mockup Caricato',
+                    canvas.width / 2,
+                    canvas.height / 2 - 10
+                );
+                
+                ctx.font = '14px -apple-system, sans-serif';
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText(
+                    'Carica una foto di sfondo per iniziare',
+                    canvas.width / 2,
+                    canvas.height / 2 + 15
+                );
+                
+                console.log('✅ Canvas inizializzato con pattern di sfondo');
+            }
+        });
+        </script>
+        
         <!-- JavaScript Libraries -->
         <script src="/static/math-utils.js"></script>
         <script src="/static/video-export.js"></script>
