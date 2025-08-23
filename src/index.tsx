@@ -1,0 +1,360 @@
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { serveStatic } from 'hono/cloudflare-workers'
+
+const app = new Hono()
+
+// Enable CORS for all routes
+app.use('*', cors())
+
+// Serve static files
+app.use('/static/*', serveStatic({ root: './public' }))
+
+// API routes for project management
+app.post('/api/project/save', async (c) => {
+  const projectData = await c.req.json()
+  
+  // In a real app, save to Cloudflare KV or D1
+  return c.json({ 
+    success: true, 
+    message: 'Progetto salvato con successo',
+    id: 'project_' + Date.now()
+  })
+})
+
+app.get('/api/project/:id', async (c) => {
+  const id = c.req.param('id')
+  
+  // In a real app, retrieve from storage
+  return c.json({ 
+    success: true,
+    project: null,
+    message: 'Progetto non trovato'
+  })
+})
+
+// Main application route
+app.get('/', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>LED Mockup App - Installazioni LED Outdoor</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <style>
+            .canvas-container {
+                position: relative;
+                border: 2px solid #e5e7eb;
+                background: #f9fafb;
+                cursor: crosshair;
+            }
+            
+            .toolbar {
+                background: #374151;
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 16px;
+            }
+            
+            .tool-btn {
+                background: #6b7280;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                margin: 2px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            
+            .tool-btn:hover {
+                background: #9ca3af;
+            }
+            
+            .tool-btn.active {
+                background: #3b82f6;
+            }
+            
+            .panel {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+            
+            .corner-pin-point {
+                position: absolute;
+                width: 12px;
+                height: 12px;
+                background: #ef4444;
+                border: 2px solid white;
+                border-radius: 50%;
+                cursor: grab;
+                transform: translate(-50%, -50%);
+                z-index: 10;
+            }
+            
+            .corner-pin-point:active {
+                cursor: grabbing;
+            }
+            
+            .progress-bar {
+                width: 100%;
+                height: 6px;
+                background: #e5e7eb;
+                border-radius: 3px;
+                overflow: hidden;
+                margin: 8px 0;
+            }
+            
+            .progress-fill {
+                height: 100%;
+                background: #10b981;
+                transition: width 0.3s ease;
+            }
+            
+            .qc-frame {
+                border: 2px solid #10b981;
+                margin: 4px;
+                display: inline-block;
+            }
+            
+            .qc-failed {
+                border-color: #ef4444;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-100">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        <i class="fas fa-video text-blue-600 mr-2"></i>
+                        LED Mockup App
+                    </h1>
+                    <div class="flex gap-2">
+                        <button id="exportBtn" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors">
+                            <i class="fas fa-download mr-2"></i>
+                            Esporta per WhatsApp (HD)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="grid grid-cols-12 gap-6">
+                <!-- Main Canvas Area -->
+                <div class="col-span-8">
+                    <!-- Toolbar -->
+                    <div class="toolbar">
+                        <div class="flex flex-wrap gap-2">
+                            <button class="tool-btn active" data-tool="select">
+                                <i class="fas fa-mouse-pointer"></i> Seleziona
+                            </button>
+                            <button class="tool-btn" data-tool="move">
+                                <i class="fas fa-arrows-alt"></i> Sposta
+                            </button>
+                            <button class="tool-btn" data-tool="scale">
+                                <i class="fas fa-expand-arrows-alt"></i> Scala
+                            </button>
+                            <button class="tool-btn" data-tool="rotate">
+                                <i class="fas fa-undo"></i> Ruota
+                            </button>
+                            <button class="tool-btn" data-tool="corner-pin">
+                                <i class="fas fa-vector-square"></i> Corner-Pin
+                            </button>
+                            <div class="border-l border-gray-500 mx-2"></div>
+                            <button class="tool-btn" data-tool="reset">
+                                <i class="fas fa-refresh"></i> Reset
+                            </button>
+                            <button class="tool-btn" data-tool="fit">
+                                <i class="fas fa-compress"></i> Fit
+                            </button>
+                            <button class="tool-btn" id="lockBackgroundBtn">
+                                <i class="fas fa-lock"></i> Blocca Sfondo
+                            </button>
+                            <div class="border-l border-gray-500 mx-2"></div>
+                            <button class="tool-btn" id="gridBtn">
+                                <i class="fas fa-th"></i> Griglia
+                            </button>
+                            <button class="tool-btn" id="snapBtn">
+                                <i class="fas fa-magnet"></i> Snap
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Container -->
+                    <div class="canvas-container" style="width: 100%; height: 500px;">
+                        <canvas id="mainCanvas" width="800" height="500"></canvas>
+                        <!-- Corner pin points will be added dynamically -->
+                    </div>
+
+                    <!-- File Import Controls -->
+                    <div class="mt-4 flex gap-4">
+                        <div>
+                            <label for="backgroundFile" class="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
+                                <i class="fas fa-image mr-2"></i>
+                                Importa Foto Sfondo
+                            </label>
+                            <input type="file" id="backgroundFile" class="hidden" accept="image/*">
+                        </div>
+                        <div>
+                            <label for="videoFile" class="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700">
+                                <i class="fas fa-video mr-2"></i>
+                                Importa Video Overlay
+                            </label>
+                            <input type="file" id="videoFile" class="hidden" accept="video/*">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <div class="col-span-4">
+                    <!-- Background Panel -->
+                    <div class="panel">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-image mr-2"></i>
+                            Controllo Sfondo
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex gap-2">
+                                <button id="panBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">Pan</button>
+                                <button id="zoomBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">Zoom</button>
+                                <button id="rotateBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">Ruota</button>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-600 mb-1">Correzione Prospettiva</label>
+                                <input type="range" id="perspectiveSlider" class="w-full" min="-50" max="50" value="0">
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                <div>Dimensioni: <span id="backgroundDimensions">-</span></div>
+                                <div>Zoom: <span id="zoomLevel">100%</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Overlay Panel -->
+                    <div class="panel">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-video mr-2"></i>
+                            Controllo Video Overlay
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <label class="block text-gray-600">Larghezza (px):</label>
+                                    <input type="number" id="videoWidth" class="w-full border rounded px-2 py-1" value="0">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Altezza (px):</label>
+                                    <input type="number" id="videoHeight" class="w-full border rounded px-2 py-1" value="0">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-600 text-sm">Rotazione (°):</label>
+                                <input type="range" id="rotationSlider" class="w-full" min="0" max="360" value="0">
+                                <span id="rotationValue">0°</span>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-600 text-sm mb-2">Coordinate Vertici (px foto):</label>
+                                <div class="grid grid-cols-2 gap-1 text-xs">
+                                    <div>
+                                        <label>TL:</label>
+                                        <input type="text" id="vertex1" class="w-full border rounded px-1" placeholder="0,0" readonly>
+                                    </div>
+                                    <div>
+                                        <label>TR:</label>
+                                        <input type="text" id="vertex2" class="w-full border rounded px-1" placeholder="0,0" readonly>
+                                    </div>
+                                    <div>
+                                        <label>BR:</label>
+                                        <input type="text" id="vertex3" class="w-full border rounded px-1" placeholder="0,0" readonly>
+                                    </div>
+                                    <div>
+                                        <label>BL:</label>
+                                        <input type="text" id="vertex4" class="w-full border rounded px-1" placeholder="0,0" readonly>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button id="copyMatrixBtn" class="w-full bg-indigo-600 text-white py-2 px-3 rounded text-sm hover:bg-indigo-700">
+                                <i class="fas fa-copy mr-2"></i>
+                                Copia Matrice 3×3
+                            </button>
+
+                            <div class="text-xs text-gray-600">
+                                <div>FPS: <span id="videoFPS">-</span></div>
+                                <div>Durata: <span id="videoDuration">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Management Panel -->
+                    <div class="panel">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-project-diagram mr-2"></i>
+                            Gestione Progetto
+                        </h3>
+                        <div class="space-y-2">
+                            <button id="exportJsonBtn" class="w-full bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700">
+                                <i class="fas fa-download mr-2"></i>
+                                Esporta JSON
+                            </button>
+                            <div>
+                                <label for="importJsonFile" class="w-full bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700 cursor-pointer block text-center">
+                                    <i class="fas fa-upload mr-2"></i>
+                                    Importa JSON
+                                </label>
+                                <input type="file" id="importJsonFile" class="hidden" accept=".json">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Progress Panel -->
+                    <div class="panel" id="exportPanel" style="display: none;">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-cogs mr-2"></i>
+                            Export in corso...
+                        </h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="exportProgress" style="width: 0%;"></div>
+                        </div>
+                        <div class="text-sm text-gray-600 text-center" id="exportStatus">
+                            Inizializzazione...
+                        </div>
+                    </div>
+
+                    <!-- Quality Control Panel -->
+                    <div class="panel" id="qcPanel" style="display: none;">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            Quality Control (QC)
+                        </h3>
+                        <div id="qcResults"></div>
+                        <div class="text-sm text-gray-600 mt-2">
+                            <div>Errore Vertici: <span id="qcVertexError">-</span> px</div>
+                            <div>SSIM Score: <span id="qcSSIM">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JavaScript Libraries -->
+        <script src="/static/math-utils.js"></script>
+        <script src="/static/video-export.js"></script>
+        <script src="/static/app.js"></script>
+    </body>
+    </html>
+  `)
+})
+
+export default app
