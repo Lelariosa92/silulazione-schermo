@@ -11,7 +11,7 @@
 - Gestione progetti con salvataggio/caricamento JSON
 
 ## URL Pubblici
-- **Sviluppo**: In corso di deployment
+- **Sviluppo**: https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev
 - **GitHub**: Repository verrà configurato dopo completamento
 
 ## Architettura Dati
@@ -99,7 +99,8 @@ type HomographyMatrix = [
 
 ### Stato Deployment
 - **Piattaforma**: Cloudflare Pages
-- **Status**: ⚠️ In sviluppo
+- **Status**: ✅ Attivo (Development)
+- **URL Live**: https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev
 - **Tech Stack**: Hono + TypeScript + Canvas API + FFmpeg.js + TailwindCSS
 
 ### Configurazione Tecnica
