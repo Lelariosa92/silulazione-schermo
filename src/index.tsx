@@ -303,6 +303,11 @@ app.get('/', (c) => {
                                 Copia Matrice 3×3
                             </button>
 
+                            <button id="testVideoBtn" class="w-full bg-purple-600 text-white py-2 px-3 rounded text-sm hover:bg-purple-700">
+                                <i class="fas fa-play mr-2"></i>
+                                Test Video Rendering
+                            </button>
+
                             <div class="text-xs text-gray-600">
                                 <div>FPS: <span id="videoFPS">-</span></div>
                                 <div>Durata: <span id="videoDuration">-</span></div>

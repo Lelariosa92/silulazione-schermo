@@ -120,6 +120,7 @@ class LEDMockupApp {
         // Export
         document.getElementById('exportBtn').addEventListener('click', this.startExport.bind(this));
         document.getElementById('copyMatrixBtn').addEventListener('click', this.copyHomographyMatrix.bind(this));
+        document.getElementById('testVideoBtn').addEventListener('click', this.testVideoRendering.bind(this));
     }
 
     /**
@@ -206,7 +207,25 @@ class LEDMockupApp {
             this.resetCornerPoints();
             this.updateVertexInputs();
             this.calculateHomography();
+            
+            // Assicurati che il video sia pronto per il rendering
+            video.currentTime = 0;
+            
+            console.log(`✅ Video caricato: ${video.videoWidth}×${video.videoHeight}, durata: ${video.duration.toFixed(1)}s`);
             this.render();
+        };
+
+        // Event listener per quando il video è pronto per essere disegnato
+        video.oncanplay = () => {
+            console.log('📹 Video ready to play, re-rendering...');
+            this.render();
+        };
+
+        // Event listener per aggiornamenti frame video
+        video.ontimeupdate = () => {
+            if (this.activeTool === 'corner-pin' || this.isDragging) {
+                this.render(); // Aggiorna rendering durante modifica corner-pin
+            }
         };
         
         const url = URL.createObjectURL(file);
@@ -236,17 +255,41 @@ class LEDMockupApp {
     resetCornerPoints() {
         if (!this.videoElement) return;
         
+        // Usa coordinate canvas per posizionamento iniziale
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
-        const halfWidth = this.videoElement.videoWidth / 4;
-        const halfHeight = this.videoElement.videoHeight / 4;
         
-        this.cornerPinPoints = [
-            { x: centerX - halfWidth, y: centerY - halfHeight }, // TL
-            { x: centerX + halfWidth, y: centerY - halfHeight }, // TR
-            { x: centerX + halfWidth, y: centerY + halfHeight }, // BR
-            { x: centerX - halfWidth, y: centerY + halfHeight }  // BL
-        ];
+        // Dimensioni proporzionali al canvas, non al video
+        const quadWidth = Math.min(this.canvas.width * 0.4, 300);
+        const quadHeight = Math.min(this.canvas.height * 0.3, 200);
+        
+        const halfWidth = quadWidth / 2;
+        const halfHeight = quadHeight / 2;
+        
+        // Se c'è un'immagine di sfondo, usa coordinate foto
+        // Altrimenti usa coordinate canvas
+        if (this.backgroundImage) {
+            const photoCenterX = this.backgroundImage.naturalWidth / 2;
+            const photoCenterY = this.backgroundImage.naturalHeight / 2;
+            const photoHalfWidth = this.backgroundImage.naturalWidth * 0.2;
+            const photoHalfHeight = this.backgroundImage.naturalHeight * 0.15;
+            
+            this.cornerPinPoints = [
+                { x: photoCenterX - photoHalfWidth, y: photoCenterY - photoHalfHeight }, // TL
+                { x: photoCenterX + photoHalfWidth, y: photoCenterY - photoHalfHeight }, // TR
+                { x: photoCenterX + photoHalfWidth, y: photoCenterY + photoHalfHeight }, // BR
+                { x: photoCenterX - photoHalfWidth, y: photoCenterY + photoHalfHeight }  // BL
+            ];
+        } else {
+            this.cornerPinPoints = [
+                { x: centerX - halfWidth, y: centerY - halfHeight }, // TL
+                { x: centerX + halfWidth, y: centerY - halfHeight }, // TR
+                { x: centerX + halfWidth, y: centerY + halfHeight }, // BR
+                { x: centerX - halfWidth, y: centerY + halfHeight }  // BL
+            ];
+        }
+        
+        console.log('Corner points reset:', this.cornerPinPoints);
     }
 
     /**
@@ -579,28 +622,126 @@ class LEDMockupApp {
      * Render video overlay con trasformazione prospettiva
      */
     renderVideoOverlay() {
-        // Implementazione placeholder per rendering video trasformato
-        // In produzione richiederebbe WebGL o libreria specializzata per trasformazioni prospettiche
-        
+        if (!this.videoElement || !this.cornerPinPoints || this.cornerPinPoints.length !== 4) {
+            return;
+        }
+
         this.ctx.save();
         
-        // Disegna rettangolo video semplice tra i corner points
-        this.ctx.beginPath();
-        this.ctx.moveTo(...this.photoToCanvasCoords(this.cornerPinPoints[0].x, this.cornerPinPoints[0].y));
-        
-        for (let i = 1; i < this.cornerPinPoints.length; i++) {
-            const point = this.photoToCanvasCoords(this.cornerPinPoints[i].x, this.cornerPinPoints[i].y);
-            this.ctx.lineTo(point.x, point.y);
+        try {
+            // Converti corner points da coordinate foto a coordinate canvas
+            const canvasCorners = this.cornerPinPoints.map(point => 
+                this.photoToCanvasCoords(point.x, point.y)
+            );
+
+            // Crea clipping path del quadrilatero
+            this.ctx.beginPath();
+            this.ctx.moveTo(canvasCorners[0].x, canvasCorners[0].y);
+            for (let i = 1; i < canvasCorners.length; i++) {
+                this.ctx.lineTo(canvasCorners[i].x, canvasCorners[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.clip();
+
+            // Calcola bounding box del quadrilatero
+            const minX = Math.min(...canvasCorners.map(p => p.x));
+            const minY = Math.min(...canvasCorners.map(p => p.y));
+            const maxX = Math.max(...canvasCorners.map(p => p.x));
+            const maxY = Math.max(...canvasCorners.map(p => p.y));
+            
+            const quadWidth = maxX - minX;
+            const quadHeight = maxY - minY;
+
+            // Disegna il video scalato al bounding box
+            if (this.videoElement.videoWidth > 0 && this.videoElement.videoHeight > 0) {
+                // Assicurati che il video sia al frame corrente
+                if (this.videoElement.readyState >= 2) {
+                    this.ctx.drawImage(
+                        this.videoElement,
+                        minX,
+                        minY,
+                        quadWidth,
+                        quadHeight
+                    );
+                } else {
+                    // Video non ancora pronto, mostra placeholder colorato
+                    this.ctx.fillStyle = 'rgba(59, 130, 246, 0.7)'; // Blue placeholder
+                    this.ctx.fillRect(minX, minY, quadWidth, quadHeight);
+                    
+                    // Testo placeholder
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '14px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(
+                        'Video Loading...',
+                        minX + quadWidth / 2,
+                        minY + quadHeight / 2
+                    );
+                }
+            } else {
+                // Video senza dimensioni, usa placeholder
+                this.renderVideoPlaceholder(minX, minY, quadWidth, quadHeight);
+            }
+
+        } catch (error) {
+            console.warn('Errore rendering video overlay:', error);
+            // Fallback: disegna solo il contorno
+            this.renderVideoOutline();
         }
         
+        this.ctx.restore();
+    }
+
+    /**
+     * Render placeholder per video non valido
+     */
+    renderVideoPlaceholder(x, y, width, height) {
+        // Gradiente placeholder
+        const gradient = this.ctx.createLinearGradient(x, y, x + width, y + height);
+        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.8)');
+        gradient.addColorStop(1, 'rgba(79, 70, 229, 0.8)');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(x, y, width, height);
+        
+        // Icona video
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = 'bold 16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('📹', x + width / 2, y + height / 2 - 10);
+        
+        // Testo
+        this.ctx.font = '12px Arial';
+        this.ctx.fillText('Video Overlay', x + width / 2, y + height / 2 + 10);
+        
+        // Dimensioni video
+        if (this.videoElement) {
+            const info = `${this.videoElement.videoWidth || '?'}×${this.videoElement.videoHeight || '?'}`;
+            this.ctx.font = '10px Arial';
+            this.ctx.fillText(info, x + width / 2, y + height / 2 + 25);
+        }
+    }
+
+    /**
+     * Render contorno corner pin quando video non disponibile
+     */
+    renderVideoOutline() {
+        const canvasCorners = this.cornerPinPoints.map(point => 
+            this.photoToCanvasCoords(point.x, point.y)
+        );
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(canvasCorners[0].x, canvasCorners[0].y);
+        for (let i = 1; i < canvasCorners.length; i++) {
+            this.ctx.lineTo(canvasCorners[i].x, canvasCorners[i].y);
+        }
         this.ctx.closePath();
-        this.ctx.fillStyle = 'rgba(147, 51, 234, 0.3)'; // Purple overlay
-        this.ctx.fill();
+        
         this.ctx.strokeStyle = '#9333ea';
         this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
         this.ctx.stroke();
-        
-        this.ctx.restore();
+        this.ctx.setLineDash([]); // Reset dash
     }
 
     /**
@@ -1033,6 +1174,52 @@ class LEDMockupApp {
         this.updateVertexInputs();
         this.calculateHomography();
         this.render();
+    }
+
+    /**
+     * Test rendering video per debug
+     */
+    testVideoRendering() {
+        if (!this.videoElement) {
+            alert('Carica prima un video!');
+            return;
+        }
+
+        console.log('🎬 Test Video Rendering...');
+        console.log('Video element:', this.videoElement);
+        console.log('Video dimensions:', this.videoElement.videoWidth, 'x', this.videoElement.videoHeight);
+        console.log('Video ready state:', this.videoElement.readyState);
+        console.log('Corner points:', this.cornerPinPoints);
+        console.log('Background image:', this.backgroundImage ? 'Present' : 'Missing');
+
+        // Force re-render
+        this.render();
+
+        // Mostra info in toast
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-purple-600 text-white px-4 py-3 rounded-lg shadow-lg z-50 max-w-sm';
+        toast.innerHTML = `
+            <div class="flex items-start">
+                <i class="fas fa-video mr-2 mt-1"></i>
+                <div class="flex-1 text-sm">
+                    <div class="font-semibold">Video Test</div>
+                    <div>Dimensioni: ${this.videoElement.videoWidth}×${this.videoElement.videoHeight}</div>
+                    <div>Ready State: ${this.videoElement.readyState}</div>
+                    <div>Corner Points: ${this.cornerPinPoints.length}</div>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-purple-200 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 5000);
     }
 }
 
