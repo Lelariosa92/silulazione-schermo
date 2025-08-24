@@ -288,14 +288,32 @@ app.get('/', (c) => {
 
                             <div class="grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <label class="block text-gray-600">Scala X:</label>
-                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="3" step="0.1" value="1">
+                                    <label class="block text-gray-600">Scala X (Larghezza):</label>
+                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="5" step="0.05" value="1">
                                     <span id="videoScaleXValue">100%</span>
                                 </div>
                                 <div>
-                                    <label class="block text-gray-600">Scala Y:</label>
-                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="3" step="0.1" value="1">
+                                    <label class="block text-gray-600">Scala Y (Altezza):</label>
+                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="5" step="0.05" value="1">
                                     <span id="videoScaleYValue">100%</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2 text-sm">
+                                <div>
+                                    <label class="block text-gray-600">Inclinazione X:</label>
+                                    <input type="range" id="videoSkewX" class="w-full" min="-45" max="45" step="1" value="0">
+                                    <span id="videoSkewXValue">0°</span>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Inclinazione Y:</label>
+                                    <input type="range" id="videoSkewY" class="w-full" min="-45" max="45" step="1" value="0">
+                                    <span id="videoSkewYValue">0°</span>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Prospettiva:</label>
+                                    <input type="range" id="videoPerspective" class="w-full" min="-50" max="50" step="1" value="0">
+                                    <span id="videoPerspectiveValue">0</span>
                                 </div>
                             </div>
                             
@@ -305,16 +323,33 @@ app.get('/', (c) => {
                                 <span id="rotationValue">0°</span>
                             </div>
 
-                            <div class="flex gap-2">
-                                <button id="centerVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
-                                    <i class="fas fa-crosshairs mr-1"></i>Centra
+                            <div class="flex gap-1">
+                                <button id="centerVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-1 rounded text-xs">
+                                    <i class="fas fa-crosshairs"></i>
                                 </button>
-                                <button id="fitVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
-                                    <i class="fas fa-expand-arrows-alt mr-1"></i>Adatta
+                                <button id="fitVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-1 rounded text-xs">
+                                    <i class="fas fa-expand-arrows-alt"></i>
                                 </button>
-                                <button id="resetVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-2 rounded text-sm">
-                                    <i class="fas fa-undo mr-1"></i>Reset
+                                <button id="resetVideoBtn" class="flex-1 bg-gray-600 text-white py-1 px-1 rounded text-xs">
+                                    <i class="fas fa-undo"></i>
                                 </button>
+                                <button id="flipHorizontalBtn" class="flex-1 bg-purple-600 text-white py-1 px-1 rounded text-xs">
+                                    <i class="fas fa-arrows-alt-h"></i>
+                                </button>
+                                <button id="flipVerticalBtn" class="flex-1 bg-purple-600 text-white py-1 px-1 rounded text-xs">
+                                    <i class="fas fa-arrows-alt-v"></i>
+                                </button>
+                            </div>
+
+                            <div class="text-xs text-gray-600 mt-2">
+                                <div class="flex justify-between">
+                                    <span>Modalità:</span>
+                                    <select id="transformMode" class="text-xs border rounded px-1">
+                                        <option value="free">Libera</option>
+                                        <option value="corner-pin">Corner-Pin</option>
+                                        <option value="perspective">Prospettiva 3D</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div>
@@ -373,6 +408,33 @@ app.get('/', (c) => {
                                     Importa JSON
                                 </label>
                                 <input type="file" id="importJsonFile" class="hidden" accept=".json">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Export Panel -->
+                    <div class="panel">
+                        <h3 class="font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-video mr-2"></i>
+                            Export Video
+                        </h3>
+                        <div class="space-y-2">
+                            <button id="createVideoBtn" class="w-full bg-red-600 text-white py-2 px-3 rounded text-sm hover:bg-red-700 font-semibold">
+                                <i class="fas fa-film mr-2"></i>
+                                🎬 Crea Video MP4
+                            </button>
+                            
+                            <button id="exportWhatsappBtn" class="w-full bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700">
+                                <i class="fab fa-whatsapp mr-2"></i>
+                                Export per WhatsApp (HD)
+                            </button>
+                            
+                            <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                                <div class="font-medium mb-1">Specifiche Export:</div>
+                                <div>• Risoluzione: Max 1920×1080</div>
+                                <div>• Codec: H.264 + AAC</div>
+                                <div>• Bitrate: 3-5 Mbps</div>
+                                <div>• Limite: 16MB (WhatsApp)</div>
                             </div>
                         </div>
                     </div>
