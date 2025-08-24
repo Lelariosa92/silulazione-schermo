@@ -2113,46 +2113,53 @@ class LEDMockupApp {
         // Pulisci canvas
         ctx.clearRect(0, 0, outputWidth, outputHeight);
 
-        // Render background scalato alla risoluzione output
+        // Render background con stesse trasformazioni del canvas principale
         if (this.backgroundImage) {
-            const bgScale = Math.min(outputWidth / this.backgroundImage.width, outputHeight / this.backgroundImage.height);
-            const bgWidth = this.backgroundImage.width * bgScale;
-            const bgHeight = this.backgroundImage.height * bgScale;
-            const bgX = (outputWidth - bgWidth) / 2;
-            const bgY = (outputHeight - bgHeight) / 2;
+            ctx.save();
             
-            ctx.drawImage(this.backgroundImage, bgX, bgY, bgWidth, bgHeight);
+            // Scala fattori per output
+            const scaleFactorX = outputWidth / this.canvas.width;
+            const scaleFactorY = outputHeight / this.canvas.height;
+            
+            // Applica trasformazioni background scalate (identico al canvas principale)
+            const { x, y, scale, rotation } = this.backgroundTransform;
+            
+            ctx.translate(x * scaleFactorX, y * scaleFactorY);
+            ctx.scale(scale * scaleFactorX, scale * scaleFactorY);
+            
+            if (rotation !== 0) {
+                ctx.rotate(rotation * Math.PI / 180);
+            }
+            
+            ctx.drawImage(this.backgroundImage, 0, 0);
+            ctx.restore();
         }
 
         // Render video con trasformazioni
-        // Render video con trasformazioni o contenuto demo animato
+        // Render video con trasformazioni (identico al canvas principale)
         if (this.videoElement && this.videoElement.readyState >= 2) {
             ctx.save();
 
-            // Applica trasformazioni (scalate alla risoluzione output)
-            const scaleX = (outputWidth / this.canvas.width);
-            const scaleY = (outputHeight / this.canvas.height);
+            // Scala delle coordinate da canvas a output
+            const scaleFactorX = outputWidth / this.canvas.width;
+            const scaleFactorY = outputHeight / this.canvas.height;
             
-            const centerX = (this.videoTransform.x * scaleX);
-            const centerY = (this.videoTransform.y * scaleY);
-            
-            ctx.translate(centerX, centerY);
-            ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
-            ctx.scale(this.videoTransform.scaleX, this.videoTransform.scaleY);
-            
-            if (this.videoTransform.flipHorizontal) ctx.scale(-1, 1);
-            if (this.videoTransform.flipVertical) ctx.scale(1, -1);
-
-            const videoWidth = this.videoElement.videoWidth * scaleX;
-            const videoHeight = this.videoElement.videoHeight * scaleY;
-            
-            ctx.drawImage(
-                this.videoElement,
-                -videoWidth / 2,
-                -videoHeight / 2,
-                videoWidth,
-                videoHeight
-            );
+            // Scegli modalità di rendering basata su transformMode (come nel canvas principale)
+            switch (this.transformMode) {
+                case 'corner-pin':
+                    if (this.cornerPinPoints && this.cornerPinPoints.length === 4) {
+                        this.renderVideoCornerPinExport(ctx, outputWidth, outputHeight, scaleFactorX, scaleFactorY);
+                    } else {
+                        this.renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY);
+                    }
+                    break;
+                    
+                case 'perspective':
+                case 'free':
+                default:
+                    this.renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY);
+                    break;
+            }
 
             ctx.restore();
         } else {
@@ -2199,28 +2206,148 @@ class LEDMockupApp {
     }
 
     /**
+     * Render video diretto per export (identico a renderVideoDirect)
+     */
+    renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY) {
+        // Calcola centro video scalato
+        const centerX = (this.videoTransform.x + (this.videoElement.videoWidth * this.videoTransform.scaleX) / 2) * scaleFactorX;
+        const centerY = (this.videoTransform.y + (this.videoElement.videoHeight * this.videoTransform.scaleY) / 2) * scaleFactorY;
+
+        // Applica trasformazioni avanzate (identico al canvas principale)
+        ctx.translate(centerX, centerY);
+
+        // Rotazione
+        if (this.videoTransform.rotation !== 0) {
+            ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
+        }
+
+        // Flip e scala
+        let scaleX = this.videoTransform.scaleX * scaleFactorX;
+        let scaleY = this.videoTransform.scaleY * scaleFactorY;
+        
+        if (this.videoTransform.flipHorizontal) scaleX *= -1;
+        if (this.videoTransform.flipVertical) scaleY *= -1;
+        
+        ctx.scale(scaleX, scaleY);
+
+        // Prospettiva e inclinazione tramite transform matrix (identico al canvas)
+        if (this.videoTransform.skewX !== 0 || this.videoTransform.skewY !== 0 || this.videoTransform.perspective !== 0) {
+            const skewXRad = this.videoTransform.skewX * Math.PI / 180;
+            const skewYRad = this.videoTransform.skewY * Math.PI / 180;
+            const perspectiveFactor = this.videoTransform.perspective * 0.01;
+            
+            // Matrice di trasformazione personalizzata
+            ctx.transform(
+                1 + perspectiveFactor,           // scaleX con prospettiva
+                Math.tan(skewYRad),             // skewY
+                Math.tan(skewXRad),             // skewX
+                1 - perspectiveFactor,          // scaleY con prospettiva
+                0, 0                            // translateX, translateY
+            );
+        }
+
+        // Disegna video centrato (identico al canvas principale)
+        const halfWidth = this.videoElement.videoWidth / 2;
+        const halfHeight = this.videoElement.videoHeight / 2;
+        
+        ctx.drawImage(
+            this.videoElement,
+            -halfWidth, -halfHeight,
+            this.videoElement.videoWidth,
+            this.videoElement.videoHeight
+        );
+    }
+
+    /**
+     * Render video corner-pin per export
+     */
+    renderVideoCornerPinExport(ctx, outputWidth, outputHeight, scaleFactorX, scaleFactorY) {
+        // Scala corner points alle dimensioni output
+        const scaledCorners = this.cornerPinPoints.map(point => ({
+            x: this.photoToCanvasCoords(point.x, point.y).x * scaleFactorX,
+            y: this.photoToCanvasCoords(point.x, point.y).y * scaleFactorY
+        }));
+
+        // Crea clipping path del quadrilatero (identico al canvas principale)
+        ctx.beginPath();
+        ctx.moveTo(scaledCorners[0].x, scaledCorners[0].y);
+        for (let i = 1; i < scaledCorners.length; i++) {
+            ctx.lineTo(scaledCorners[i].x, scaledCorners[i].y);
+        }
+        ctx.closePath();
+        ctx.clip();
+
+        // Calcola bounding box del quadrilatero
+        const minX = Math.min(...scaledCorners.map(p => p.x));
+        const minY = Math.min(...scaledCorners.map(p => p.y));
+        const maxX = Math.max(...scaledCorners.map(p => p.x));
+        const maxY = Math.max(...scaledCorners.map(p => p.y));
+        
+        const quadWidth = maxX - minX;
+        const quadHeight = maxY - minY;
+
+        // Disegna il video scalato al bounding box (identico al canvas)
+        ctx.drawImage(
+            this.videoElement,
+            minX,
+            minY,
+            quadWidth,
+            quadHeight
+        );
+    }
+
+    /**
      * Renderizza contenuto demo animato quando non c'è video
      */
     renderAnimatedDemo(ctx, outputWidth, outputHeight) {
         ctx.save();
         
-        // Applica trasformazioni come per video reale
-        const scaleX = (outputWidth / this.canvas.width);
-        const scaleY = (outputHeight / this.canvas.height);
+        // Usa stessa logica del video reale per trasformazioni
+        const scaleFactorX = outputWidth / this.canvas.width;
+        const scaleFactorY = outputHeight / this.canvas.height;
         
-        const centerX = (this.videoTransform.x * scaleX);
-        const centerY = (this.videoTransform.y * scaleY);
+        // Dimensioni demo standard (simula videoElement)
+        const demoVideoWidth = 400;
+        const demoVideoHeight = 300;
         
-        ctx.translate(centerX, centerY);
-        ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
-        ctx.scale(this.videoTransform.scaleX, this.videoTransform.scaleY);
-        
-        if (this.videoTransform.flipHorizontal) ctx.scale(-1, 1);
-        if (this.videoTransform.flipVertical) ctx.scale(1, -1);
+        // Calcola centro demo usando stessa logica di renderVideoDirectExport
+        const centerX = (this.videoTransform.x + (demoVideoWidth * this.videoTransform.scaleX) / 2) * scaleFactorX;
+        const centerY = (this.videoTransform.y + (demoVideoHeight * this.videoTransform.scaleY) / 2) * scaleFactorY;
 
-        // Dimensioni area demo (basata su video standard)
-        const demoWidth = 400 * scaleX;
-        const demoHeight = 300 * scaleY;
+        ctx.translate(centerX, centerY);
+        
+        // Rotazione
+        if (this.videoTransform.rotation !== 0) {
+            ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
+        }
+
+        // Flip e scala
+        let scaleX = this.videoTransform.scaleX * scaleFactorX;
+        let scaleY = this.videoTransform.scaleY * scaleFactorY;
+        
+        if (this.videoTransform.flipHorizontal) scaleX *= -1;
+        if (this.videoTransform.flipVertical) scaleY *= -1;
+        
+        ctx.scale(scaleX, scaleY);
+
+        // Prospettiva e inclinazione (identico al video reale)
+        if (this.videoTransform.skewX !== 0 || this.videoTransform.skewY !== 0 || this.videoTransform.perspective !== 0) {
+            const skewXRad = this.videoTransform.skewX * Math.PI / 180;
+            const skewYRad = this.videoTransform.skewY * Math.PI / 180;
+            const perspectiveFactor = this.videoTransform.perspective * 0.01;
+            
+            ctx.transform(
+                1 + perspectiveFactor,
+                Math.tan(skewYRad),
+                Math.tan(skewXRad),
+                1 - perspectiveFactor,
+                0, 0
+            );
+        }
+
+        // Dimensioni area demo centrata
+        const demoWidth = demoVideoWidth;
+        const demoHeight = demoVideoHeight;
         
         // Crea animazione basata su timestamp
         const time = Date.now() / 1000; // secondi
@@ -2240,21 +2367,20 @@ class LEDMockupApp {
         ctx.lineWidth = 4;
         ctx.strokeRect(-demoWidth/2, -demoHeight/2, demoWidth, demoHeight);
         
-        // Testo animato
-        const textScale = Math.max(0.5, scaleX * 0.8);
+        // Testo animato (dimensioni fisse, non scalate)
         ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${48 * textScale}px Arial`;
+        ctx.font = 'bold 48px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
         // Testo principale
-        ctx.fillText('LED MOCKUP', 0, -30 * textScale);
+        ctx.fillText('LED MOCKUP', 0, -30);
         
         // Testo secondario animato
-        ctx.font = `${32 * textScale}px Arial`;
+        ctx.font = '32px Arial';
         const scrollText = 'DEMO VIDEO • ';
         const scrollOffset = (time * 50) % (scrollText.length * 20);
-        ctx.fillText(scrollText, -scrollOffset, 30 * textScale);
+        ctx.fillText(scrollText, -scrollOffset, 30);
         
         ctx.restore();
     }
