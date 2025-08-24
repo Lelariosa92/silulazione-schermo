@@ -19,6 +19,7 @@ class LEDMockupApp {
         this.backgroundLocked = false;
         this.videoElement = null;
         this.videoFile = null;
+        this.videoFullyLoaded = false; // Flag per video completamente caricato
         
         // Trasformazioni sfondo
         this.backgroundTransform = {
@@ -242,10 +243,15 @@ class LEDMockupApp {
         this.videoFile = file;
         
         const video = document.createElement('video');
-        video.preload = 'metadata';
+        video.preload = 'auto'; // Carica tutto il video, non solo metadata
+        video.crossOrigin = 'anonymous'; // Per evitare problemi CORS se necessario
+        
+        // Mostra loading
+        this.showVideoLoadingStatus('Caricamento metadata video...');
         
         video.onloadedmetadata = () => {
-            this.videoElement = video;
+            console.log('📊 Video metadata caricati');
+            this.showVideoLoadingStatus('Caricamento contenuto video...');
             
             // Aggiorna info video
             document.getElementById('videoFPS').textContent = '25'; // Default
@@ -254,9 +260,30 @@ class LEDMockupApp {
             
             document.getElementById('videoWidth').value = video.videoWidth;
             document.getElementById('videoHeight').value = video.videoHeight;
+        };
+        
+        // Evento quando video è completamente caricato e pronto per seek
+        video.oncanplaythrough = () => {
+            console.log('✅ Video completamente caricato e pronto per seek');
+            this.videoElement = video;
+            this.videoFullyLoaded = true;
+            
+            // DEBUG: Verifica stato prima inizializzazione
+            console.log('🔧 Inizializzazione video controls:', {
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight,
+                canvasWidth: this.canvas.width,
+                canvasHeight: this.canvas.height,
+                videoTransform: this.videoTransform
+            });
             
             // Inizializza trasformazione video
             this.centerVideo();
+            
+            // DEBUG: Verifica stato dopo centerVideo
+            console.log('🎯 Dopo centerVideo:', {
+                videoTransform: this.videoTransform
+            });
             
             // Inizializza corner points al centro del canvas
             this.resetCornerPoints();
@@ -266,12 +293,19 @@ class LEDMockupApp {
             // Assicurati che il video sia pronto per il rendering
             video.currentTime = 0;
             
-            console.log(`✅ Video caricato: ${video.videoWidth}×${video.videoHeight}, durata: ${video.duration.toFixed(1)}s`);
+            this.showVideoLoadingStatus(`✅ Video pronto: ${video.videoWidth}×${video.videoHeight}, ${video.duration.toFixed(1)}s`);
             
             // Attiva tool move per default per permettere trascinamento
             this.setActiveTool('move');
             
+            console.log('🎮 Tool attivo dopo inizializzazione:', this.activeTool);
+            
             this.render();
+            
+            // Nascondi loading dopo 2 secondi
+            setTimeout(() => {
+                this.hideVideoLoadingStatus();
+            }, 2000);
         };
 
         // Event listener per quando il video è pronto per essere disegnato
@@ -386,11 +420,25 @@ class LEDMockupApp {
         
         switch (this.activeTool) {
             case 'move':
+                // DEBUG: Log controllo mouse su video
+                const isOverVideo = this.videoElement && this.isMouseOverVideo(this.dragStartPos.x, this.dragStartPos.y);
+                if (deltaX !== 0 || deltaY !== 0) { // Solo se c'è movimento
+                    console.log('🖱️ Mouse Move Debug:', {
+                        tool: this.activeTool,
+                        hasVideo: !!this.videoElement,
+                        isOverVideo: isOverVideo,
+                        dragStart: this.dragStartPos,
+                        delta: { deltaX, deltaY },
+                        videoTransform: this.videoTransform
+                    });
+                }
+                
                 // Controlla se il mouse è sopra il video
-                if (this.videoElement && this.isMouseOverVideo(this.dragStartPos.x, this.dragStartPos.y)) {
+                if (isOverVideo) {
                     // Muovi video
                     this.videoTransform.x += deltaX;
                     this.videoTransform.y += deltaY;
+                    console.log('📦 Video spostato a:', { x: this.videoTransform.x, y: this.videoTransform.y });
                     this.updateVideoControls();
                     this.render();
                 } else if (!this.backgroundLocked && this.backgroundImage) {
@@ -1673,7 +1721,26 @@ class LEDMockupApp {
         const videoRight = videoLeft + (this.videoElement.videoWidth * this.videoTransform.scaleX);
         const videoBottom = videoTop + (this.videoElement.videoHeight * this.videoTransform.scaleY);
 
-        return x >= videoLeft && x <= videoRight && y >= videoTop && y <= videoBottom;
+        const isOver = x >= videoLeft && x <= videoRight && y >= videoTop && y <= videoBottom;
+        
+        // DEBUG: Log controllo area video (solo ogni 50 chiamate per non spam)
+        if (!this._mouseCheckCounter) this._mouseCheckCounter = 0;
+        this._mouseCheckCounter++;
+        if (this._mouseCheckCounter % 50 === 0) {
+            console.log('🎯 Mouse over video check:', {
+                mousePos: { x, y },
+                videoArea: { left: videoLeft, top: videoTop, right: videoRight, bottom: videoBottom },
+                videoSize: { 
+                    width: this.videoElement.videoWidth, 
+                    height: this.videoElement.videoHeight,
+                    scaleX: this.videoTransform.scaleX,
+                    scaleY: this.videoTransform.scaleY
+                },
+                isOver: isOver
+            });
+        }
+
+        return isOver;
     }
 
     /**
@@ -1885,6 +1952,9 @@ class LEDMockupApp {
         const useDemo = !this.videoElement;
         if (useDemo) {
             console.log('📺 Nessun video caricato, uso contenuto demo animato');
+        } else if (!this.videoFullyLoaded) {
+            alert('Il video si sta ancora caricando. Attendi che sia completamente caricato prima di esportare.');
+            return;
         }
 
         try {
@@ -2325,6 +2395,31 @@ class LEDMockupApp {
         };
 
         testVideoSeek();
+    }
+
+    /**
+     * Mostra status caricamento video
+     */
+    showVideoLoadingStatus(message) {
+        // Aggiorna status negli elementi UI esistenti
+        const videoDuration = document.getElementById('videoDuration');
+        if (videoDuration) {
+            videoDuration.textContent = message;
+            videoDuration.style.color = '#f59e0b'; // Colore arancione per loading
+        }
+        
+        console.log('📦 ' + message);
+    }
+
+    /**
+     * Nascondi status caricamento video
+     */
+    hideVideoLoadingStatus() {
+        const videoDuration = document.getElementById('videoDuration');
+        if (videoDuration && this.videoElement) {
+            videoDuration.textContent = `${this.videoElement.duration.toFixed(1)}s`;
+            videoDuration.style.color = ''; // Ripristina colore normale
+        }
     }
 
     /**

@@ -299,6 +299,30 @@ app.get('/', (c) => {
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+                                <div>
+                                    <label class="block text-gray-600">Posizione X:</label>
+                                    <input type="number" id="videoPosX" class="w-full border rounded px-1" value="0" step="1">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Posizione Y:</label>
+                                    <input type="number" id="videoPosY" class="w-full border rounded px-1" value="0" step="1">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+                                <div>
+                                    <label class="block text-gray-600">Scala X:</label>
+                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="5" step="0.1" value="1">
+                                    <span id="videoScaleXValue">100%</span>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-600">Scala Y:</label>
+                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="5" step="0.1" value="1">
+                                    <span id="videoScaleYValue">100%</span>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-3 gap-2 text-sm">
                                 <div>
                                     <label class="block text-gray-600">Inclinazione X:</label>
