@@ -210,12 +210,17 @@ app.get('/', (c) => {
 
                     <!-- File Import Controls -->
                     <div class="mt-4 flex gap-4">
-                        <div>
+                        <div class="flex gap-2">
                             <label for="backgroundFile" class="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700">
                                 <i class="fas fa-image mr-2"></i>
                                 Importa Foto Sfondo
                             </label>
                             <input type="file" id="backgroundFile" class="hidden" accept="image/*">
+                            
+                            <button id="testBackgroundBtn" class="bg-orange-600 text-white px-3 py-2 rounded hover:bg-orange-700 text-sm">
+                                <i class="fas fa-test-tube mr-1"></i>
+                                Test Sfondo
+                            </button>
                         </div>
                         <div>
                             <label for="videoFile" class="bg-purple-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-purple-700">

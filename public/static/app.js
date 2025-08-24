@@ -141,6 +141,9 @@ class LEDMockupApp {
         document.getElementById('centerVideoBtn').addEventListener('click', this.centerVideo.bind(this));
         document.getElementById('fitVideoBtn').addEventListener('click', this.fitVideo.bind(this));
         document.getElementById('resetVideoBtn').addEventListener('click', this.resetVideoTransform.bind(this));
+        
+        // Test background button
+        document.getElementById('testBackgroundBtn').addEventListener('click', this.createTestBackground.bind(this));
     }
 
     /**
@@ -192,9 +195,21 @@ class LEDMockupApp {
                 document.getElementById('backgroundDimensions').textContent = 
                     `${img.naturalWidth} × ${img.naturalHeight}`;
                 
+                console.log(`✅ Immagine sfondo caricata: ${img.naturalWidth}×${img.naturalHeight}`);
+                console.log('Background image object:', this.backgroundImage);
+                
                 // Fit iniziale
                 this.fitBackgroundToCanvas();
+                
+                // Debug trasformazioni
+                console.log('Background transform after fit:', this.backgroundTransform);
+                
                 this.render();
+                
+                // Verifica rendering dopo un breve delay
+                setTimeout(() => {
+                    console.log('Background check dopo render - presente:', !!this.backgroundImage);
+                }, 100);
             };
             img.src = e.target.result;
         };
@@ -597,7 +612,10 @@ class LEDMockupApp {
         
         // Render sfondo
         if (this.backgroundImage) {
+            console.log('🖼️ Rendering background image...', this.backgroundTransform);
             this.renderBackground();
+        } else {
+            console.log('❌ No background image to render');
         }
         
         // Render video overlay
@@ -660,7 +678,14 @@ class LEDMockupApp {
      * Render immagine sfondo
      */
     renderBackground() {
+        if (!this.backgroundImage) {
+            console.warn('⚠️ renderBackground called but no backgroundImage');
+            return;
+        }
+        
         const { x, y, scale, rotation } = this.backgroundTransform;
+        
+        console.log(`🎨 Drawing background at x:${x}, y:${y}, scale:${scale}, rotation:${rotation}`);
         
         this.ctx.save();
         this.ctx.translate(x, y);
@@ -670,7 +695,13 @@ class LEDMockupApp {
             this.ctx.rotate(rotation * Math.PI / 180);
         }
         
-        this.ctx.drawImage(this.backgroundImage, 0, 0);
+        try {
+            this.ctx.drawImage(this.backgroundImage, 0, 0);
+            console.log('✅ Background image drawn successfully');
+        } catch (error) {
+            console.error('❌ Error drawing background image:', error);
+        }
+        
         this.ctx.restore();
     }
 
@@ -1501,7 +1532,6 @@ class LEDMockupApp {
         document.getElementById('videoScaleYValue').textContent = Math.round(this.videoTransform.scaleY * 100) + '%';
         document.getElementById('rotationValue').textContent = this.videoTransform.rotation + '°';
     }
-}
 
     /**
      * Verifica se il mouse è sopra il video
@@ -1533,6 +1563,98 @@ class LEDMockupApp {
         } else {
             this.updateCanvasCursor();
         }
+    }
+
+    /**
+     * Crea immagine di test per background
+     */
+    createTestBackground() {
+        console.log('🧪 Creando immagine di test...');
+        
+        // Crea canvas per immagine test
+        const testCanvas = document.createElement('canvas');
+        testCanvas.width = 800;
+        testCanvas.height = 600;
+        const ctx = testCanvas.getContext('2d');
+        
+        // Sfondo gradiente
+        const gradient = ctx.createLinearGradient(0, 0, testCanvas.width, testCanvas.height);
+        gradient.addColorStop(0, '#87CEEB'); // Sky blue
+        gradient.addColorStop(0.7, '#90EE90'); // Light green
+        gradient.addColorStop(1, '#8FBC8F');   // Dark sea green
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, testCanvas.width, testCanvas.height);
+        
+        // Edificio
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(100, 300, 600, 300);
+        
+        // Finestre
+        ctx.fillStyle = '#4169E1';
+        for (let i = 0; i < 5; i++) {
+            ctx.fillRect(150 + i * 120, 350, 60, 80);
+        }
+        
+        // Porta
+        ctx.fillStyle = '#654321';
+        ctx.fillRect(350, 450, 100, 150);
+        
+        // Area LED (rettangolo rosso tratteggiato)
+        ctx.setLineDash([10, 5]);
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(200, 200, 400, 80);
+        ctx.setLineDash([]);
+        
+        // Testo
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('AREA LED MOCKUP', testCanvas.width / 2, 180);
+        
+        ctx.font = '12px Arial';
+        ctx.fillText('Immagine di Test - 800×600px', testCanvas.width / 2, testCanvas.height - 20);
+        
+        // Converti canvas in Image
+        testCanvas.toBlob((blob) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.backgroundImage = img;
+                    
+                    console.log('✅ Immagine test creata e caricata:', img.naturalWidth, 'x', img.naturalHeight);
+                    
+                    // Aggiorna dimensioni visualizzate
+                    document.getElementById('backgroundDimensions').textContent = 
+                        `${img.naturalWidth} × ${img.naturalHeight}`;
+                    
+                    // Fit iniziale
+                    this.fitBackgroundToCanvas();
+                    this.render();
+                    
+                    // Toast success
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg z-50';
+                    toast.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <span>Sfondo test caricato! (800×600)</span>
+                        </div>
+                    `;
+                    document.body.appendChild(toast);
+                    
+                    setTimeout(() => {
+                        if (toast.parentElement) {
+                            toast.remove();
+                        }
+                    }, 3000);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+        }, 'image/png');
     }
 }
 
