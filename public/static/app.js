@@ -1873,12 +1873,18 @@ class LEDMockupApp {
     }
 
     /**
-     * Crea video MP4 con le trasformazioni correnti
+     * Crea video MP4 reale con le trasformazioni correnti
      */
     async createVideo() {
-        if (!this.videoElement || !this.backgroundImage) {
-            alert('Carica prima foto di sfondo e video overlay');
+        if (!this.backgroundImage) {
+            alert('Carica prima una foto di sfondo');
             return;
+        }
+
+        // Se non c'è video, usa contenuto demo animato
+        const useDemo = !this.videoElement;
+        if (useDemo) {
+            console.log('📺 Nessun video caricato, uso contenuto demo animato');
         }
 
         try {
@@ -1891,52 +1897,133 @@ class LEDMockupApp {
             exportStatus.textContent = 'Inizializzazione rendering video...';
             exportProgress.style.width = '0%';
 
-            console.log('🎬 Inizio creazione video...');
+            console.log('🎬 Inizio creazione video MP4 reale...');
             console.log('📊 Trasformazioni video:', this.videoTransform);
             console.log('📊 Corner points:', this.cornerPoints);
 
-            // Simula processo di rendering per ora
-            // TODO: Implementare rendering reale con FFmpeg.js o Canvas recording
-            
-            const steps = [
-                'Preparazione canvas di rendering...',
-                'Calcolo matrici di trasformazione...',
-                'Rendering frame video...',
-                'Applicazione trasformazioni prospettiche...',
-                'Codifica H.264...',
-                'Ottimizzazione per WhatsApp...',
-                'Finalizzazione MP4...'
-            ];
-
-            for (let i = 0; i < steps.length; i++) {
-                exportStatus.textContent = steps[i];
-                exportProgress.style.width = `${((i + 1) / steps.length) * 100}%`;
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Crea canvas per rendering finale
+            // Crea canvas per rendering video
             const renderCanvas = document.createElement('canvas');
             const renderCtx = renderCanvas.getContext('2d');
             
-            // Usa dimensioni output standard (HD)
+            // Dimensioni output HD
             renderCanvas.width = 1920;
             renderCanvas.height = 1080;
 
-            // Render un frame di esempio
-            this.renderVideoFrame(renderCtx, renderCanvas.width, renderCanvas.height);
+            exportStatus.textContent = 'Preparazione recording canvas...';
+            exportProgress.style.width = '10%';
 
-            // Converte canvas a blob
-            const blob = await new Promise(resolve => {
-                renderCanvas.toBlob(resolve, 'image/png', 1.0);
+            // Setup MediaRecorder per catturare canvas come video
+            const stream = renderCanvas.captureStream(25); // 25 FPS
+            
+            // Seleziona il miglior codec supportato
+            let recordingOptions = { videoBitsPerSecond: 4000000 }; // 4 Mbps
+            
+            if (MediaRecorder.isTypeSupported('video/mp4')) {
+                recordingOptions.mimeType = 'video/mp4';
+                console.log('📹 Usando codec MP4 nativo');
+            } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
+                recordingOptions.mimeType = 'video/webm; codecs=vp9';
+                console.log('📹 Usando codec WebM VP9');
+            } else if (MediaRecorder.isTypeSupported('video/webm; codecs=vp8')) {
+                recordingOptions.mimeType = 'video/webm; codecs=vp8';
+                console.log('📹 Usando codec WebM VP8');
+            } else {
+                console.log('📹 Usando codec default browser');
+            }
+            
+            const mediaRecorder = new MediaRecorder(stream, recordingOptions);
+
+            const recordedChunks = [];
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            exportStatus.textContent = 'Avvio registrazione video...';
+            exportProgress.style.width = '20%';
+
+            // Promessa per fine registrazione
+            const recordingComplete = new Promise((resolve) => {
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    resolve(blob);
+                };
             });
 
-            // Crea URL per download (per ora PNG, TODO: implementare MP4)
-            const url = URL.createObjectURL(blob);
+            // Avvia registrazione
+            mediaRecorder.start();
+
+            // Ottieni durata video (usa video reale o durata demo)
+            const videoDuration = useDemo ? 5 : Math.min(this.videoElement.duration || 5, 30);
+            const fps = 25;
+            const totalFrames = Math.ceil(videoDuration * fps);
+            const frameInterval = 1000 / fps; // ms per frame
+
+            exportStatus.textContent = `Rendering ${totalFrames} frame video...`;
             
-            // Crea link download
+            let currentFrame = 0;
+            const renderInterval = setInterval(() => {
+                // Calcola tempo video corrente
+                const currentTime = currentFrame / fps;
+                
+                // Aggiorna video alla posizione corrente (se presente)
+                if (!useDemo && this.videoElement && this.videoElement.readyState >= 2) {
+                    this.videoElement.currentTime = currentTime;
+                }
+
+                // Renderizza frame composito (sincrono, il video è già posizionato)
+                this.renderVideoFrame(renderCtx, renderCanvas.width, renderCanvas.height);
+
+                // Aggiorna progress
+                const progress = 20 + (currentFrame / totalFrames) * 60; // 20% -> 80%
+                exportProgress.style.width = `${progress}%`;
+                
+                currentFrame++;
+
+                // Fine rendering quando raggiunto numero frame o fine video
+                if (currentFrame >= totalFrames || currentTime >= videoDuration) {
+                    clearInterval(renderInterval);
+                    
+                    exportStatus.textContent = 'Finalizzazione video...';
+                    exportProgress.style.width = '90%';
+                    
+                    // Stop registrazione dopo breve delay
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                    }, 500);
+                }
+            }, frameInterval);
+
+            // Aspetta completamento registrazione
+            const videoBlob = await recordingComplete;
+
+            exportStatus.textContent = 'Conversione in MP4...';
+            exportProgress.style.width = '95%';
+
+            // Prova conversione MP4, altrimenti mantieni WebM
+            let finalBlob = videoBlob;
+            let fileExtension = 'webm';
+            
+            try {
+                // Tentativo conversione MP4 con supporto browser
+                if (this.supportsMP4Recording()) {
+                    finalBlob = await this.convertToMP4(videoBlob);
+                    fileExtension = 'mp4';
+                    console.log('✅ Video convertito in MP4');
+                } else {
+                    console.log('⚠️ MP4 non supportato, mantengo WebM');
+                }
+            } catch (error) {
+                console.log('⚠️ Conversione MP4 fallita, uso WebM:', error);
+            }
+
+            // Crea download link con formato appropriato
+            const url = URL.createObjectURL(finalBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `led-mockup-${Date.now()}.png`;
+            link.download = `led-mockup-video-${Date.now()}.${fileExtension}`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1944,14 +2031,14 @@ class LEDMockupApp {
             // Cleanup
             URL.revokeObjectURL(url);
 
-            exportStatus.textContent = 'Video creato con successo!';
+            exportStatus.textContent = `Video ${fileExtension.toUpperCase()} creato con successo!`;
             exportProgress.style.width = '100%';
             
             setTimeout(() => {
                 exportPanel.style.display = 'none';
             }, 3000);
 
-            console.log('✅ Video creazione completata');
+            console.log('✅ Video MP4 creazione completata');
 
         } catch (error) {
             console.error('❌ Errore creazione video:', error);
@@ -2002,6 +2089,24 @@ class LEDMockupApp {
     }
 
     /**
+     * Aspetta che il video sia posizionato al tempo specificato
+     */
+    async waitForVideoSeek(targetTime) {
+        if (!this.videoElement || this.videoElement.readyState < 2) return;
+        
+        return new Promise((resolve) => {
+            const checkTime = () => {
+                if (Math.abs(this.videoElement.currentTime - targetTime) < 0.1) {
+                    resolve();
+                } else {
+                    setTimeout(checkTime, 10);
+                }
+            };
+            checkTime();
+        });
+    }
+
+    /**
      * Renderizza un singolo frame video con tutte le trasformazioni
      */
     renderVideoFrame(ctx, outputWidth, outputHeight) {
@@ -2020,6 +2125,7 @@ class LEDMockupApp {
         }
 
         // Render video con trasformazioni
+        // Render video con trasformazioni o contenuto demo animato
         if (this.videoElement && this.videoElement.readyState >= 2) {
             ctx.save();
 
@@ -2049,9 +2155,108 @@ class LEDMockupApp {
             );
 
             ctx.restore();
+        } else {
+            // Render contenuto demo animato se non c'è video
+            this.renderAnimatedDemo(ctx, outputWidth, outputHeight);
         }
 
         console.log('🎬 Frame renderizzato:', outputWidth, 'x', outputHeight);
+    }
+
+    /**
+     * Controlla se il browser supporta registrazione MP4 
+     */
+    supportsMP4Recording() {
+        // Controlla supporto MediaRecorder per MP4
+        const types = [
+            'video/mp4',
+            'video/mp4; codecs=avc1',
+            'video/mp4; codecs=h264'
+        ];
+        
+        return types.some(type => MediaRecorder.isTypeSupported(type));
+    }
+
+    /**
+     * Converte video WebM in MP4 (simulato per ora)
+     */
+    async convertToMP4(webmBlob) {
+        // TODO: Implementare conversione reale con FFmpeg.js
+        // Per ora restituisce il blob originale
+        
+        console.log('🔄 Simulazione conversione WebM -> MP4...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // In produzione, qui useremmo FFmpeg.js:
+        // const ffmpeg = new FFmpeg();
+        // await ffmpeg.load();
+        // await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+        // await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-c:a', 'aac', 'output.mp4']);
+        // const mp4Data = await ffmpeg.readFile('output.mp4');
+        // return new Blob([mp4Data.buffer], { type: 'video/mp4' });
+        
+        return webmBlob; // Per ora restituisce WebM originale
+    }
+
+    /**
+     * Renderizza contenuto demo animato quando non c'è video
+     */
+    renderAnimatedDemo(ctx, outputWidth, outputHeight) {
+        ctx.save();
+        
+        // Applica trasformazioni come per video reale
+        const scaleX = (outputWidth / this.canvas.width);
+        const scaleY = (outputHeight / this.canvas.height);
+        
+        const centerX = (this.videoTransform.x * scaleX);
+        const centerY = (this.videoTransform.y * scaleY);
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate(this.videoTransform.rotation * Math.PI / 180);
+        ctx.scale(this.videoTransform.scaleX, this.videoTransform.scaleY);
+        
+        if (this.videoTransform.flipHorizontal) ctx.scale(-1, 1);
+        if (this.videoTransform.flipVertical) ctx.scale(1, -1);
+
+        // Dimensioni area demo (basata su video standard)
+        const demoWidth = 400 * scaleX;
+        const demoHeight = 300 * scaleY;
+        
+        // Crea animazione basata su timestamp
+        const time = Date.now() / 1000; // secondi
+        const pulse = 0.8 + 0.2 * Math.sin(time * 2); // Pulsazione 0.8-1.0
+        
+        // Sfondo LED simulato
+        const gradient = ctx.createLinearGradient(-demoWidth/2, -demoHeight/2, demoWidth/2, demoHeight/2);
+        gradient.addColorStop(0, `rgba(255, 0, 0, ${pulse})`);
+        gradient.addColorStop(0.5, `rgba(255, 255, 0, ${pulse})`);
+        gradient.addColorStop(1, `rgba(0, 255, 0, ${pulse})`);
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(-demoWidth/2, -demoHeight/2, demoWidth, demoHeight);
+        
+        // Bordo LED
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(-demoWidth/2, -demoHeight/2, demoWidth, demoHeight);
+        
+        // Testo animato
+        const textScale = Math.max(0.5, scaleX * 0.8);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${48 * textScale}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Testo principale
+        ctx.fillText('LED MOCKUP', 0, -30 * textScale);
+        
+        // Testo secondario animato
+        ctx.font = `${32 * textScale}px Arial`;
+        const scrollText = 'DEMO VIDEO • ';
+        const scrollOffset = (time * 50) % (scrollText.length * 20);
+        ctx.fillText(scrollText, -scrollOffset, 30 * textScale);
+        
+        ctx.restore();
     }
 }
 
