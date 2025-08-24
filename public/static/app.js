@@ -1964,37 +1964,100 @@ class LEDMockupApp {
             exportStatus.textContent = `Rendering ${totalFrames} frame video...`;
             
             let currentFrame = 0;
-            const renderInterval = setInterval(() => {
-                // Calcola tempo video corrente
+            
+            // Funzione asincrona per renderizzare un singolo frame
+            const renderSingleFrame = async () => {
                 const currentTime = currentFrame / fps;
                 
-                // Aggiorna video alla posizione corrente (se presente)
-                if (!useDemo && this.videoElement && this.videoElement.readyState >= 2) {
-                    this.videoElement.currentTime = currentTime;
+                // DEBUG: Log stato corrente
+                if (currentFrame % 10 === 0) {
+                    console.log('📊 Export Frame Debug:', {
+                        frame: currentFrame,
+                        currentTime: currentTime,
+                        hasVideo: !!this.videoElement,
+                        videoReady: this.videoElement ? this.videoElement.readyState >= 2 : false,
+                        videoCurrentTime: this.videoElement ? this.videoElement.currentTime : null
+                    });
                 }
-
-                // Renderizza frame composito (sincrono, il video è già posizionato)
-                this.renderVideoFrame(renderCtx, renderCanvas.width, renderCanvas.height);
-
-                // Aggiorna progress
-                const progress = 20 + (currentFrame / totalFrames) * 60; // 20% -> 80%
-                exportProgress.style.width = `${progress}%`;
                 
-                currentFrame++;
-
-                // Fine rendering quando raggiunto numero frame o fine video
-                if (currentFrame >= totalFrames || currentTime >= videoDuration) {
-                    clearInterval(renderInterval);
+                // Aggiorna video alla posizione corrente e aspetta seek
+                if (!useDemo && this.videoElement && this.videoElement.readyState >= 2) {
+                    const oldTime = this.videoElement.currentTime;
                     
-                    exportStatus.textContent = 'Finalizzazione video...';
-                    exportProgress.style.width = '90%';
+                    // Imposta nuovo tempo
+                    this.videoElement.currentTime = currentTime;
                     
-                    // Stop registrazione dopo breve delay
-                    setTimeout(() => {
-                        mediaRecorder.stop();
-                    }, 500);
+                    // ASPETTA che il video abbia effettivamente fatto seek al nuovo frame
+                    await new Promise((resolve) => {
+                        let timeoutId;
+                        
+                        const onSeeked = () => {
+                            clearTimeout(timeoutId);
+                            this.videoElement.removeEventListener('seeked', onSeeked);
+                            resolve();
+                        };
+                        
+                        // Listener per evento seeked (più affidabile)
+                        this.videoElement.addEventListener('seeked', onSeeked);
+                        
+                        // Timeout di sicurezza (100ms max)
+                        timeoutId = setTimeout(() => {
+                            this.videoElement.removeEventListener('seeked', onSeeked);
+                            console.warn('⚠️ Video seek timeout, continuando...');
+                            resolve();
+                        }, 100);
+                    });
+                    
+                    // DEBUG: Verifica seek completato
+                    if (currentFrame % 25 === 0) {
+                        console.log('🕒 Video Seek Completato:', {
+                            frame: currentFrame,
+                            targetTime: currentTime,
+                            actualTime: this.videoElement.currentTime,
+                            timeDiff: Math.abs(this.videoElement.currentTime - currentTime)
+                        });
+                    }
                 }
-            }, frameInterval);
+
+                // Renderizza frame composito DOPO che video è sincronizzato
+                this.renderVideoFrame(renderCtx, renderCanvas.width, renderCanvas.height);
+                
+                return currentTime;
+            };
+            
+            // Rendering sequenziale asincrono
+            const renderAllFrames = async () => {
+                while (currentFrame < totalFrames && (currentFrame / fps) < videoDuration) {
+                    await renderSingleFrame();
+                    
+                    // Aggiorna progress
+                    const progress = 20 + (currentFrame / totalFrames) * 60; // 20% -> 80%
+                    exportProgress.style.width = `${progress}%`;
+                    exportStatus.textContent = `Rendering frame ${currentFrame + 1}/${totalFrames}...`;
+                    
+                    currentFrame++;
+                    
+                    // Piccola pausa per non bloccare UI
+                    if (currentFrame % 5 === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 1));
+                    }
+                }
+                
+                // Fine rendering
+                exportStatus.textContent = 'Finalizzazione video...';
+                exportProgress.style.width = '90%';
+                
+                // Stop registrazione
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 500);
+            };
+            
+            // Avvia rendering asincrono
+            renderAllFrames().catch(error => {
+                console.error('❌ Errore durante rendering frames:', error);
+                mediaRecorder.stop();
+            });
 
             // Aspetta completamento registrazione
             const videoBlob = await recordingComplete;
@@ -2110,64 +2173,63 @@ class LEDMockupApp {
      * Renderizza un singolo frame video con tutte le trasformazioni
      */
     renderVideoFrame(ctx, outputWidth, outputHeight) {
-        // Pulisci canvas
+        // APPROCCIO SEMPLIFICATO: Copia direttamente dal canvas principale
+        
+        // DEBUG: Verifica stato video prima del render
+        if (this.videoElement) {
+            console.log('🎥 Video State Before Render:', {
+                currentTime: this.videoElement.currentTime,
+                readyState: this.videoElement.readyState,
+                videoWidth: this.videoElement.videoWidth,
+                videoHeight: this.videoElement.videoHeight,
+                paused: this.videoElement.paused,
+                ended: this.videoElement.ended,
+                src: this.videoElement.src.substring(0, 50) + '...'
+            });
+        }
+        
+        // 1. Forza render nel canvas principale per assicurarci che sia aggiornato
+        this.render();
+        
+        // 2. Pulisci canvas export
         ctx.clearRect(0, 0, outputWidth, outputHeight);
-
-        // Render background con stesse trasformazioni del canvas principale
-        if (this.backgroundImage) {
-            ctx.save();
-            
-            // Scala fattori per output
-            const scaleFactorX = outputWidth / this.canvas.width;
-            const scaleFactorY = outputHeight / this.canvas.height;
-            
-            // Applica trasformazioni background scalate (identico al canvas principale)
-            const { x, y, scale, rotation } = this.backgroundTransform;
-            
-            ctx.translate(x * scaleFactorX, y * scaleFactorY);
-            ctx.scale(scale * scaleFactorX, scale * scaleFactorY);
-            
-            if (rotation !== 0) {
-                ctx.rotate(rotation * Math.PI / 180);
-            }
-            
-            ctx.drawImage(this.backgroundImage, 0, 0);
-            ctx.restore();
-        }
-
-        // Render video con trasformazioni
-        // Render video con trasformazioni (identico al canvas principale)
-        if (this.videoElement && this.videoElement.readyState >= 2) {
-            ctx.save();
-
-            // Scala delle coordinate da canvas a output
-            const scaleFactorX = outputWidth / this.canvas.width;
-            const scaleFactorY = outputHeight / this.canvas.height;
-            
-            // Scegli modalità di rendering basata su transformMode (come nel canvas principale)
-            switch (this.transformMode) {
-                case 'corner-pin':
-                    if (this.cornerPinPoints && this.cornerPinPoints.length === 4) {
-                        this.renderVideoCornerPinExport(ctx, outputWidth, outputHeight, scaleFactorX, scaleFactorY);
-                    } else {
-                        this.renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY);
-                    }
-                    break;
-                    
-                case 'perspective':
-                case 'free':
-                default:
-                    this.renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY);
-                    break;
-            }
-
-            ctx.restore();
+        
+        // 3. Copia il canvas principale scalandolo all'output mantenendo aspect ratio
+        ctx.save();
+        
+        // Calcola fattori di scala per mantenere aspect ratio
+        const canvasAspect = this.canvas.width / this.canvas.height;
+        const outputAspect = outputWidth / outputHeight;
+        
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (canvasAspect > outputAspect) {
+            // Canvas più largo, scala in base all'altezza
+            drawHeight = outputHeight;
+            drawWidth = drawHeight * canvasAspect;
+            drawX = (outputWidth - drawWidth) / 2;
+            drawY = 0;
         } else {
-            // Render contenuto demo animato se non c'è video
-            this.renderAnimatedDemo(ctx, outputWidth, outputHeight);
+            // Canvas più alto, scala in base alla larghezza
+            drawWidth = outputWidth;
+            drawHeight = drawWidth / canvasAspect;
+            drawX = 0;
+            drawY = (outputHeight - drawHeight) / 2;
         }
+        
+        // Copia canvas principale scalato
+        ctx.drawImage(
+            this.canvas,
+            drawX, drawY, drawWidth, drawHeight
+        );
+        
+        ctx.restore();
 
-        console.log('🎬 Frame renderizzato:', outputWidth, 'x', outputHeight);
+        console.log('🎬 Frame copiato dal canvas:', {
+            canvasSize: `${this.canvas.width}x${this.canvas.height}`,
+            outputSize: `${outputWidth}x${outputHeight}`,
+            drawArea: `${drawWidth}x${drawHeight} at (${drawX}, ${drawY})`
+        });
     }
 
     /**
@@ -2206,12 +2268,87 @@ class LEDMockupApp {
     }
 
     /**
+     * Debug video per capire perché non si aggiorna
+     */
+    debugVideo() {
+        if (!this.videoElement) {
+            alert('Nessun video caricato');
+            return;
+        }
+
+        console.log('🐛 DEBUG VIDEO - Stato completo:', {
+            element: this.videoElement,
+            src: this.videoElement.src,
+            currentSrc: this.videoElement.currentSrc,
+            readyState: this.videoElement.readyState,
+            networkState: this.videoElement.networkState,
+            currentTime: this.videoElement.currentTime,
+            duration: this.videoElement.duration,
+            paused: this.videoElement.paused,
+            ended: this.videoElement.ended,
+            videoWidth: this.videoElement.videoWidth,
+            videoHeight: this.videoElement.videoHeight,
+            transformations: this.videoTransform
+        });
+
+        // Test cambio currentTime
+        const testTimes = [0, 1, 2, 3];
+        let testIndex = 0;
+
+        const testVideoSeek = () => {
+            if (testIndex < testTimes.length) {
+                const testTime = testTimes[testIndex];
+                console.log(`🕒 Test Seek a ${testTime}s...`);
+                
+                this.videoElement.currentTime = testTime;
+                
+                // Aspetta seek e render
+                setTimeout(() => {
+                    console.log(`📊 Dopo seek a ${testTime}s:`, {
+                        targetTime: testTime,
+                        actualTime: this.videoElement.currentTime,
+                        timeDiff: Math.abs(this.videoElement.currentTime - testTime)
+                    });
+                    
+                    // Forza render
+                    this.render();
+                    
+                    testIndex++;
+                    setTimeout(testVideoSeek, 1000);
+                }, 200);
+            } else {
+                console.log('✅ Test video seek completato');
+                // Torna a inizio
+                this.videoElement.currentTime = 0;
+                this.render();
+            }
+        };
+
+        testVideoSeek();
+    }
+
+    /**
      * Render video diretto per export (identico a renderVideoDirect)
      */
     renderVideoDirectExport(ctx, scaleFactorX, scaleFactorY) {
+        // DEBUG: Log parametri di rendering
+        console.log('🎬 renderVideoDirectExport chiamato:', {
+            scaleFactorX,
+            scaleFactorY,
+            videoTransform: this.videoTransform,
+            videoElement: {
+                width: this.videoElement.videoWidth,
+                height: this.videoElement.videoHeight,
+                currentTime: this.videoElement.currentTime,
+                readyState: this.videoElement.readyState
+            }
+        });
+        
         // Calcola centro video scalato
         const centerX = (this.videoTransform.x + (this.videoElement.videoWidth * this.videoTransform.scaleX) / 2) * scaleFactorX;
         const centerY = (this.videoTransform.y + (this.videoElement.videoHeight * this.videoTransform.scaleY) / 2) * scaleFactorY;
+
+        console.log('🎯 Centro video calcolato:', { centerX, centerY });
 
         // Applica trasformazioni avanzate (identico al canvas principale)
         ctx.translate(centerX, centerY);
@@ -2417,6 +2554,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('exportWhatsappBtn').addEventListener('click', () => {
         window.ledMockupApp.exportForWhatsApp();
+    });
+    
+    // Event listener per debug video
+    document.getElementById('debugVideoBtn').addEventListener('click', () => {
+        window.ledMockupApp.debugVideo();
     });
     
     // Resize canvas on window resize

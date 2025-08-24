@@ -384,6 +384,11 @@ app.get('/', (c) => {
                                 Test Video Rendering
                             </button>
 
+                            <button id="debugVideoBtn" class="w-full bg-orange-600 text-white py-2 px-3 rounded text-sm hover:bg-orange-700">
+                                <i class="fas fa-bug mr-2"></i>
+                                Debug Video
+                            </button>
+
                             <div class="text-xs text-gray-600">
                                 <div>FPS: <span id="videoFPS">-</span></div>
                                 <div>Durata: <span id="videoDuration">-</span></div>

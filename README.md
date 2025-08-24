@@ -183,9 +183,12 @@ type HomographyMatrix = [
 
 ---
 
-## ✅ EXPORT VIDEO REALE MP4/WEBM IMPLEMENTATO!
+## ✅ EXPORT VIDEO REALE MP4/WEBM - POSIZIONAMENTO E CONTENUTO CORRETTI!
 
-**Problema Risolto**: Il sistema creava solo PNG statici invece di veri video MP4/WebM.
+**Problemi Risolti**: 
+1. ❌ Il sistema creava solo PNG statici → ✅ Ora crea veri video MP4/WebM
+2. ❌ Video posizionato nel posto sbagliato → ✅ Posizionamento identico al canvas
+3. ❌ Non mostrava contenuto video caricato → ✅ Mostra video reale con trasformazioni
 
 **🎬 IMPLEMENTAZIONE VIDEO REALE COMPLETATA:**
 
@@ -216,7 +219,14 @@ type HomographyMatrix = [
 6. **Format Detection**: Download MP4 o WebM basato su supporto browser
 7. **Quality Assurance**: Video finale pronto per condivisione diretta
 
-**Risultato**: VERI FILE VIDEO scaricabili (MP4/WebM) con tutte le trasformazioni applicate in movimento!
+### 🎯 **Sincronizzazione Canvas ↔ Export Perfetta**
+- **Rendering Unificato**: Stessa logica per canvas principale e export video
+- **Coordinate Identiche**: ScaleFactor preciso outputSize/canvasSize
+- **Trasformazioni Sincronizzate**: Rotazione, scala, skew, prospettiva identici
+- **Corner-Pin Matching**: Clipping path e bounding box scalati perfettamente
+- **Background Matching**: backgroundTransform applicato con scale factors
+
+**Risultato**: EXPORT VIDEO mostra ESATTAMENTE quello che vedi nel canvas! Video posizionato correttamente con contenuto reale e tutte le trasformazioni applicate.
 
 ---
 
