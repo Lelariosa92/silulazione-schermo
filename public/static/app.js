@@ -9,6 +9,38 @@
  * - Salvataggio/caricamento progetti JSON
  */
 
+// ========================================
+// STATO GLOBALE PERSISTENTE (Cross-Browser Fix)
+// ========================================
+const appState = {
+    videoTransform: { x: 25.25, y: 0, scaleX: 0.4873046875, scaleY: 0.4873046875, rotation: 0, perspective: 0, skewX: 0, skewY: 0, flipHorizontal: false, flipVertical: false },
+    cornerPoints: null,   // [{x,y} x4] oppure null
+    didInit: false,       // Flag inizializzazione one-time
+    homographyMatrix: null,
+    backgroundTransform: { x: 0, y: 0, scale: 1, rotation: 0, perspective: 0 }
+};
+
+// Utility per numeri sicuri (Chrome è severo con separatori decimali)
+const toSafeNum = (value) => {
+    const num = Number(String(value).replace(',', '.'));
+    return Number.isFinite(num) ? num : 0;
+};
+
+// Validazione punti finiti
+const isFinitePoint = (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y);
+
+// Throttle per eventi rumorosi
+const throttle = (fn, ms) => {
+    let lastTime = 0;
+    return (...args) => {
+        const now = Date.now();
+        if (now - lastTime >= ms) {
+            lastTime = now;
+            fn(...args);
+        }
+    };
+};
+
 class LEDMockupApp {
     constructor() {
         this.canvas = document.getElementById('mainCanvas');
@@ -21,42 +53,16 @@ class LEDMockupApp {
         this.videoFile = null;
         this.videoFullyLoaded = false; // Flag per video completamente caricato
         
-        // Trasformazioni sfondo
-        this.backgroundTransform = {
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotation: 0,
-            perspective: 0
-        };
-
-        // Trasformazioni video avanzate
-        this.videoTransform = {
-            x: 0,
-            y: 0,
-            scaleX: 1,
-            scaleY: 1,
-            rotation: 0,
-            skewX: 0,
-            skewY: 0,
-            perspective: 0,
-            flipHorizontal: false,
-            flipVertical: false
-        };
+        // Riferimenti allo stato globale (NO copie locali)
+        this.backgroundTransform = appState.backgroundTransform;
+        this.videoTransform = appState.videoTransform;
 
         // Modalità trasformazione
         this.transformMode = 'free'; // 'free', 'corner-pin', 'perspective'
         
-        // Coordinate Corner-Pin (px foto)
-        this.cornerPinPoints = [
-            { x: 100, y: 100 }, // Top-Left
-            { x: 300, y: 100 }, // Top-Right
-            { x: 300, y:200 }, // Bottom-Right
-            { x: 100, y: 200 }  // Bottom-Left
-        ];
-        
-        // Matrice omografia 3×3
-        this.homographyMatrix = this.calculateHomography();
+        // Riferimenti allo stato globale (NO copie locali)
+        this.cornerPinPoints = appState.cornerPoints;
+        this.homographyMatrix = appState.homographyMatrix;
         
         // Strumenti attivi
         this.activeTool = 'select';
@@ -75,8 +81,90 @@ class LEDMockupApp {
             audioBitrate: '128k'
         };
         
+        // CROSS-BROWSER FIX: Inizializza canvas con dimensioni reali
+        this.setupCanvasDimensions();
+        
         this.initializeEventListeners();
         this.render();
+        
+        // Inizializza stato persistente
+        this.loadPersistedState();
+    }
+
+    /**
+     * CROSS-BROWSER FIX: Setup dimensioni canvas reali
+     */
+    setupCanvasDimensions() {
+        const targetWidth = 800;
+        const targetHeight = 600;
+        
+        // Imposta dimensioni via attributi (non solo CSS)
+        this.canvas.width = targetWidth;
+        this.canvas.height = targetHeight;
+        
+        // Assicura coerenza CSS
+        this.canvas.style.width = targetWidth + 'px';
+        this.canvas.style.height = targetHeight + 'px';
+        
+        console.log(`📐 Canvas setup: ${targetWidth}×${targetHeight}`);
+    }
+
+    /**
+     * CROSS-BROWSER FIX: Inizializzazione one-time idempotente
+     */
+    initOnce() {
+        if (appState.didInit) {
+            console.log('🔒 InitOnce già eseguito, skip reset');
+            return;
+        }
+        
+        console.log('🚀 InitOnce: Prima inizializzazione');
+        
+        // SOLO alla prima inizializzazione
+        this.centerVideo();
+        this.resetCornerPoints();
+        this.calculateHomography();
+        
+        appState.didInit = true;
+        this.savePersistedState();
+        this.render();
+        
+        console.log('✅ InitOnce completato');
+    }
+    
+    /**
+     * Salva stato persistente
+     */
+    savePersistedState() {
+        try {
+            localStorage.setItem('ledMockupState', JSON.stringify({
+                videoTransform: appState.videoTransform,
+                cornerPoints: appState.cornerPoints,
+                backgroundTransform: appState.backgroundTransform,
+                didInit: appState.didInit
+            }));
+        } catch (e) {
+            console.warn('⚠️ Impossibile salvare stato:', e);
+        }
+    }
+    
+    /**
+     * Carica stato persistente
+     */
+    loadPersistedState() {
+        try {
+            const saved = localStorage.getItem('ledMockupState');
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state.videoTransform) Object.assign(appState.videoTransform, state.videoTransform);
+                if (state.cornerPoints) appState.cornerPoints = state.cornerPoints;
+                if (state.backgroundTransform) Object.assign(appState.backgroundTransform, state.backgroundTransform);
+                if (state.didInit) appState.didInit = state.didInit;
+                console.log('📥 Stato caricato da localStorage');
+            }
+        } catch (e) {
+            console.warn('⚠️ Impossibile caricare stato:', e);
+        }
     }
 
     /**
@@ -277,18 +365,9 @@ class LEDMockupApp {
                 videoTransform: this.videoTransform
             });
             
-            // Inizializza trasformazione video
-            this.centerVideo();
-            
-            // DEBUG: Verifica stato dopo centerVideo
-            console.log('🎯 Dopo centerVideo:', {
-                videoTransform: this.videoTransform
-            });
-            
-            // Inizializza corner points al centro del canvas
-            this.resetCornerPoints();
+            // CROSS-BROWSER FIX: Inizializzazione one-time idempotente
+            this.initOnce();
             this.updateVertexInputs();
-            this.calculateHomography();
             
             // Assicurati che il video sia pronto per il rendering
             video.currentTime = 0;
@@ -309,17 +388,17 @@ class LEDMockupApp {
         };
 
         // Event listener per quando il video è pronto per essere disegnato
-        video.oncanplay = () => {
-            console.log('📹 Video ready to play, re-rendering...');
-            this.render();
-        };
-
-        // Event listener per aggiornamenti frame video
-        video.ontimeupdate = () => {
-            if (this.activeTool === 'corner-pin' || this.isDragging) {
-                this.render(); // Aggiorna rendering durante modifica corner-pin
-            }
-        };
+        // CROSS-BROWSER FIX: Eventi throttled per Chrome (NO state mutations)
+        const safeRedraw = throttle(() => {
+            console.log('📹 Video safe redraw (throttled)');
+            this.render(); // SOLO render, NO reset state
+        }, 50);
+        
+        video.oncanplay = safeRedraw;
+        video.ontimeupdate = safeRedraw;
+        
+        // CROSS-BROWSER FIX: Inizializzazione one-time solo su loadedmetadata
+        video.addEventListener('loadedmetadata', () => this.initOnce(), { once: true });
         
         const url = URL.createObjectURL(file);
         video.src = url;
@@ -435,11 +514,16 @@ class LEDMockupApp {
                 
                 // Controlla se il mouse è sopra il video
                 if (isOverVideo) {
-                    // Muovi video
-                    this.videoTransform.x += deltaX;
-                    this.videoTransform.y += deltaY;
-                    console.log('📦 Video spostato a:', { x: this.videoTransform.x, y: this.videoTransform.y });
-                    this.updateVideoControls();
+                    // CROSS-BROWSER FIX: Aggiorna stato globale direttamente
+                    appState.videoTransform.x += deltaX;
+                    appState.videoTransform.y += deltaY;
+                    
+                    console.log('📦 Video spostato a:', { x: appState.videoTransform.x, y: appState.videoTransform.y });
+                    
+                    // Salva stato persistente
+                    this.savePersistedState();
+                    
+                    // SOLO render, NO updateVideoControls per evitare reset
                     this.render();
                 } else if (!this.backgroundLocked && this.backgroundImage) {
                     // Muovi sfondo
@@ -603,8 +687,24 @@ class LEDMockupApp {
     /**
      * Calcola matrice omografia 3×3
      */
+    /**
+     * CROSS-BROWSER FIX: Calcolo omografia con validazione robusta
+     */
     calculateHomography() {
         if (!this.videoElement) return;
+        
+        // Validazione corner points
+        if (!this.cornerPinPoints || this.cornerPinPoints.length !== 4) {
+            console.warn('⚠️ Corner points invalid, keeping current homography');
+            return;
+        }
+        
+        // Validazione punti finiti
+        const invalidPoints = this.cornerPinPoints.filter(p => !isFinitePoint(p));
+        if (invalidPoints.length > 0) {
+            console.warn('⚠️ Non-finite corner points detected:', invalidPoints);
+            return;
+        }
         
         // Punti sorgente (rectangle video originale)
         const srcPoints = [
@@ -614,24 +714,47 @@ class LEDMockupApp {
             [0, this.videoElement.videoHeight]
         ];
         
-        // Punti destinazione (corner pin points)
-        const dstPoints = this.cornerPinPoints.map(p => [p.x, p.y]);
+        // Punti destinazione (corner pin points) - normalizzati
+        const dstPoints = this.cornerPinPoints.map(p => [toSafeNum(p.x), toSafeNum(p.y)]);
         
         try {
-            // Usa libreria matematica robusta per calcolo omografia
-            this.homographyMatrix = MathUtils.calculateHomography(srcPoints, dstPoints);
+            // Calcola omografia con libreria matematica
+            const newMatrix = MathUtils.calculateHomography(srcPoints, dstPoints);
             
-            // Calcola errore di reproiezione per validazione
+            // CROSS-BROWSER FIX: Validazione matrice risultante
+            if (!newMatrix || !Array.isArray(newMatrix) || newMatrix.length !== 9) {
+                throw new Error('Invalid matrix structure');
+            }
+            
+            // Controlla valori finiti
+            const invalidValues = newMatrix.filter(v => !Number.isFinite(v));
+            if (invalidValues.length > 0) {
+                throw new Error(`Non-finite matrix values: ${invalidValues.length}`);
+            }
+            
+            // Calcola errore di reproiezione
             const reprojectionError = MathUtils.calculateReprojectionError(
-                srcPoints, dstPoints, this.homographyMatrix
+                srcPoints, dstPoints, newMatrix
             );
             
-            console.log('Matrice omografia calcolata, errore reproiezione:', reprojectionError.toFixed(3), 'px');
+            if (!Number.isFinite(reprojectionError) || reprojectionError > 100) {
+                throw new Error(`Reprojection error too high: ${reprojectionError}`);
+            }
+            
+            // SUCCESSO: Aggiorna matrice nello stato globale
+            appState.homographyMatrix = newMatrix;
+            this.homographyMatrix = newMatrix;
+            
+            console.log('✅ Matrice omografia valida, errore reproiezione:', reprojectionError.toFixed(3), 'px');
             
         } catch (error) {
-            console.error('Errore calcolo omografia:', error.message);
-            // Fallback a matrice identità
-            this.homographyMatrix = MathUtils.identityMatrix3x3();
+            // FALLBACK: NO reset state, solo log warning
+            console.warn('⚠️ Homography invalid, falling back to affine rendering:', error.message);
+            // Mantieni matrice esistente o usa identità se non esiste
+            if (!this.homographyMatrix) {
+                this.homographyMatrix = MathUtils.identityMatrix3x3();
+                appState.homographyMatrix = this.homographyMatrix;
+            }
         }
     }
 
@@ -2656,15 +2779,22 @@ document.addEventListener('DOMContentLoaded', () => {
         window.ledMockupApp.debugVideo();
     });
     
-    // Resize canvas on window resize
-    window.addEventListener('resize', () => {
+    // CROSS-BROWSER FIX: Resize throttled (NO state reset)
+    const throttledResize = throttle(() => {
         // Mantieni aspect ratio 16:10 per canvas
         const container = document.querySelector('.canvas-container');
         const width = container.clientWidth;
         const height = Math.round(width * 0.625); // 16:10 ratio
         
+        // Aggiorna dimensioni canvas
         window.ledMockupApp.canvas.width = width;
         window.ledMockupApp.canvas.height = height;
+        
+        console.log('📏 Canvas resized (throttled):', { width, height });
+        
+        // SOLO render, NO reset state
         window.ledMockupApp.render();
-    });
+    }, 100);
+    
+    window.addEventListener('resize', throttledResize);
 });
