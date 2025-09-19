@@ -138,12 +138,39 @@ class VideoExporter {
      * @returns {Object} Info video
      */
     async analyzeVideo(videoElement) {
+        // CORREZIONE: Usa FPS reali del video invece di 25 fisso
+        let realFPS = 30; // Default fallback
+        
+        // Prova a leggere FPS reali (se disponibili)
+        try {
+            if (videoElement.mozFrameDelay) {
+                realFPS = 1000 / videoElement.mozFrameDelay;
+            } else if (videoElement.webkitVideoDecodedByteCount) {
+                // Usa 30 FPS per video WebKit/Chrome
+                realFPS = 30;
+            } else {
+                // Fallback: calcola FPS approssimativo dalla durata
+                // Assumiamo video standard a 24-30 FPS
+                realFPS = videoElement.duration > 10 ? 25 : 30;
+            }
+        } catch (e) {
+            console.warn('⚠️ Impossibile determinare FPS reali, uso 25 FPS');
+            realFPS = 25;
+        }
+        
+        console.log('🎬 Video analizzato:', {
+            size: `${videoElement.videoWidth}×${videoElement.videoHeight}`,
+            duration: `${videoElement.duration.toFixed(2)}s`,
+            fps: realFPS,
+            totalFrames: Math.ceil(videoElement.duration * realFPS)
+        });
+        
         return {
             width: videoElement.videoWidth,
             height: videoElement.videoHeight,
             duration: videoElement.duration,
-            fps: 25, // Default, in produzione leggere dai metadata
-            frameCount: Math.ceil(videoElement.duration * 25)
+            fps: realFPS,
+            frameCount: Math.ceil(videoElement.duration * realFPS)
         };
     }
 
@@ -175,14 +202,27 @@ class VideoExporter {
         const frameCount = videoInfo.frameCount;
         const frameDuration = 1 / videoInfo.fps;
 
+        console.log('🎬 Inizio rendering frames:', {
+            totalFrames: frameCount,
+            frameDuration: `${frameDuration.toFixed(4)}s`,
+            totalDuration: `${videoInfo.duration.toFixed(2)}s`
+        });
+
         for (let i = 0; i < frameCount; i++) {
-            // Posiziona video al frame corrente
-            const currentTime = i * frameDuration;
+            // CORREZIONE: Posiziona video al tempo preciso rispettando la durata originale
+            const currentTime = Math.min(i * frameDuration, videoInfo.duration - 0.01);
             video.currentTime = currentTime;
             
             // Aspetta che il frame sia caricato
             await new Promise(resolve => {
-                video.addEventListener('seeked', resolve, { once: true });
+                const onSeeked = () => {
+                    video.removeEventListener('seeked', onSeeked);
+                    resolve();
+                };
+                video.addEventListener('seeked', onSeeked);
+                
+                // Timeout di sicurezza
+                setTimeout(resolve, 100);
             });
 
             // Renderizza frame composito

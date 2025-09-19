@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Tutti i Controlli Video</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .test-section { background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; }
+        .test-button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        .test-button:hover { background: #0056b3; }
+        .test-button.success { background: #28a745; }
+        .test-button.warning { background: #ffc107; color: black; }
+        .test-button.danger { background: #dc3545; }
+        #results { background: #f8f9fa; padding: 15px; margin-top: 20px; border-radius: 8px; max-height: 400px; overflow-y: auto; }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid #eee; }
+        .log-success { color: #28a745; }
+        .log-warning { color: #ffc107; }
+        .log-error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Completo Controlli Video LED Mockup</h1>
+        <p><strong>App URL:</strong> <a href="https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev" target="_blank" id="appUrl">Apri Applicazione</a></p>
+        
+        <div class="test-grid">
+            <!-- Test Posizione -->
+            <div class="test-section">
+                <h3>📍 Test Posizione</h3>
+                <button class="test-button" onclick="testPosition()">Test Pos X/Y</button>
+                <button class="test-button" onclick="testDragMovement()">Test Trascinamento</button>
+            </div>
+            
+            <!-- Test Scala -->
+            <div class="test-section">
+                <h3>📏 Test Scala</h3>
+                <button class="test-button" onclick="testScale()">Test Scale X/Y</button>
+                <button class="test-button" onclick="testScaleTools()">Test Tool Scale</button>
+            </div>
+            
+            <!-- Test Rotazione -->
+            <div class="test-section">
+                <h3>🔄 Test Rotazione</h3>
+                <button class="test-button" onclick="testRotation()">Test Rotazione</button>
+                <button class="test-button" onclick="testRotationTool()">Test Tool Rotate</button>
+            </div>
+            
+            <!-- Test Skew/Prospettiva -->
+            <div class="test-section">
+                <h3>🎭 Test Trasformazioni</h3>
+                <button class="test-button" onclick="testSkew()">Test Inclinazione</button>
+                <button class="test-button" onclick="testPerspective()">Test Prospettiva</button>
+            </div>
+            
+            <!-- Test Flip -->
+            <div class="test-section">
+                <h3>🔀 Test Flip</h3>
+                <button class="test-button" onclick="testFlipHorizontal()">Test Flip H</button>
+                <button class="test-button" onclick="testFlipVertical()">Test Flip V</button>
+            </div>
+            
+            <!-- Test Tools -->
+            <div class="test-section">
+                <h3>🛠️ Test Tools</h3>
+                <button class="test-button" onclick="testAllTools()">Test Tutti i Tool</button>
+                <button class="test-button" onclick="testCornerPin()">Test Corner Pin</button>
+            </div>
+            
+            <!-- Test Export -->
+            <div class="test-section">
+                <h3>📹 Test Export</h3>
+                <button class="test-button" onclick="testExportMP4()">Test Export MP4</button>
+                <button class="test-button" onclick="testExportValidation()">Test Validazione</button>
+            </div>
+            
+            <!-- Test Reset -->
+            <div class="test-section">
+                <h3>🔄 Test Reset</h3>
+                <button class="test-button" onclick="testReset()">Test Reset All</button>
+                <button class="test-button" onclick="runCompleteTest()">🚀 Test Completo</button>
+            </div>
+        </div>
+        
+        <div id="results">
+            <h3>📊 Risultati Test:</h3>
+            <div id="testOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        const APP_URL = 'https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev';
+        let appWindow = null;
+        let app = null;
+        
+        function log(message, type = 'info') {
+            const output = document.getElementById('testOutput');
+            const className = type === 'success' ? 'log-success' : 
+                             type === 'warning' ? 'log-warning' : 
+                             type === 'error' ? 'log-error' : '';
+            output.innerHTML += `<div class="log-entry ${className}">${new Date().toLocaleTimeString()}: ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+            console.log(message);
+        }
+        
+        async function initApp() {
+            if (!appWindow || appWindow.closed) {
+                log('🚀 Aprendo finestra applicazione...', 'info');
+                appWindow = window.open(APP_URL, 'testApp', 'width=1200,height=800');
+                await new Promise(resolve => setTimeout(resolve, 4000)); // Aspetta caricamento + mock video
+            }
+            
+            app = appWindow.ledMockupApp;
+            if (!app) {
+                log('❌ Applicazione non trovata nella finestra', 'error');
+                return false;
+            }
+            
+            if (!app.videoElement) {
+                log('❌ Mock video non trovato', 'error');
+                return false;
+            }
+            
+            log('✅ Applicazione pronta per test', 'success');
+            return true;
+        }
+        
+        async function testPosition() {
+            if (!(await initApp())) return;
+            
+            log('📍 Testando controlli posizione...', 'info');
+            
+            const originalPos = { x: app.videoTransform.x, y: app.videoTransform.y };
+            
+            // Test cambio tramite controlli UI
+            const posXInput = appWindow.document.getElementById('videoPosX');
+            const posYInput = appWindow.document.getElementById('videoPosY');
+            
+            posXInput.value = '150';
+            posYInput.value = '100';
+            posXInput.dispatchEvent(new Event('input'));
+            posYInput.dispatchEvent(new Event('input'));
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (app.videoTransform.x === 150 && app.videoTransform.y === 100) {
+                log('✅ Controlli posizione funzionano correttamente', 'success');
+            } else {
+                log(`❌ Controlli posizione NON funzionano. Atteso: (150,100), Ottenuto: (${app.videoTransform.x},${app.videoTransform.y})`, 'error');
+            }
+            
+            // Ripristina posizione originale
+            app.videoTransform.x = originalPos.x;
+            app.videoTransform.y = originalPos.y;
+            app.updateVideoControls();
+            app.render();
+        }
+        
+        async function testScale() {
+            if (!(await initApp())) return;
+            
+            log('📏 Testando controlli scala...', 'info');
+            
+            const originalScale = { x: app.videoTransform.scaleX, y: app.videoTransform.scaleY };
+            
+            const scaleXInput = appWindow.document.getElementById('videoScaleX');
+            const scaleYInput = appWindow.document.getElementById('videoScaleY');
+            
+            scaleXInput.value = '1.5';
+            scaleYInput.value = '0.8';
+            scaleXInput.dispatchEvent(new Event('input'));
+            scaleYInput.dispatchEvent(new Event('input'));
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (Math.abs(app.videoTransform.scaleX - 1.5) < 0.01 && Math.abs(app.videoTransform.scaleY - 0.8) < 0.01) {
+                log('✅ Controlli scala funzionano correttamente', 'success');
+            } else {
+                log(`❌ Controlli scala NON funzionano. Atteso: (1.5,0.8), Ottenuto: (${app.videoTransform.scaleX},${app.videoTransform.scaleY})`, 'error');
+            }
+            
+            // Ripristina scala originale
+            app.videoTransform.scaleX = originalScale.x;
+            app.videoTransform.scaleY = originalScale.y;
+            app.updateVideoControls();
+            app.render();
+        }
+        
+        async function testRotation() {
+            if (!(await initApp())) return;
+            
+            log('🔄 Testando rotazione...', 'info');
+            
+            const originalRotation = app.videoTransform.rotation;
+            
+            const rotationSlider = appWindow.document.getElementById('rotationSlider');
+            rotationSlider.value = '45';
+            rotationSlider.dispatchEvent(new Event('input'));
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (app.videoTransform.rotation === 45) {
+                log('✅ Rotazione funziona correttamente', 'success');
+            } else {
+                log(`❌ Rotazione NON funziona. Atteso: 45°, Ottenuto: ${app.videoTransform.rotation}°`, 'error');
+            }
+            
+            // Ripristina rotazione originale
+            app.videoTransform.rotation = originalRotation;
+            app.updateVideoControls();
+            app.render();
+        }
+        
+        async function testSkew() {
+            if (!(await initApp())) return;
+            
+            log('🎭 Testando inclinazione (skew)...', 'info');
+            
+            const originalSkew = { x: app.videoTransform.skewX, y: app.videoTransform.skewY };
+            
+            const skewXSlider = appWindow.document.getElementById('videoSkewX');
+            const skewYSlider = appWindow.document.getElementById('videoSkewY');
+            
+            skewXSlider.value = '15';
+            skewYSlider.value = '-10';
+            skewXSlider.dispatchEvent(new Event('input'));
+            skewYSlider.dispatchEvent(new Event('input'));
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (app.videoTransform.skewX === 15 && app.videoTransform.skewY === -10) {
+                log('✅ Inclinazione funziona correttamente', 'success');
+            } else {
+                log(`❌ Inclinazione NON funziona. Atteso: (15°,-10°), Ottenuto: (${app.videoTransform.skewX}°,${app.videoTransform.skewY}°)`, 'error');
+            }
+            
+            // Ripristina inclinazione originale
+            app.videoTransform.skewX = originalSkew.x;
+            app.videoTransform.skewY = originalSkew.y;
+            app.updateVideoControls();
+            app.render();
+        }
+        
+        async function testPerspective() {
+            if (!(await initApp())) return;
+            
+            log('🎭 Testando prospettiva...', 'info');
+            
+            const originalPerspective = app.videoTransform.perspective;
+            
+            const perspectiveSlider = appWindow.document.getElementById('videoPerspective');
+            perspectiveSlider.value = '20';
+            perspectiveSlider.dispatchEvent(new Event('input'));
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (app.videoTransform.perspective === 20) {
+                log('✅ Prospettiva funziona correttamente', 'success');
+            } else {
+                log(`❌ Prospettiva NON funziona. Atteso: 20, Ottenuto: ${app.videoTransform.perspective}`, 'error');
+            }
+            
+            // Ripristina prospettiva originale
+            app.videoTransform.perspective = originalPerspective;
+            app.updateVideoControls();
+            app.render();
+        }
+        
+        async function testFlipHorizontal() {
+            if (!(await initApp())) return;
+            
+            log('🔀 Testando flip orizzontale...', 'info');
+            
+            const originalFlip = app.videoTransform.flipHorizontal;
+            
+            const flipBtn = appWindow.document.getElementById('flipHorizontalBtn');
+            flipBtn.click();
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            if (app.videoTransform.flipHorizontal !== originalFlip) {
+                log('✅ Flip orizzontale funziona correttamente', 'success');
+                
+                // Ripristina flip originale
+                flipBtn.click();
+            } else {
+                log('❌ Flip orizzontale NON funziona', 'error');
+            }
+        }
+        
+        async function testFlipVertical() {
+            if (!(await initApp())) return;
+            
+            log('🔀 Testando flip verticale...', 'info');
+            
+            const originalFlip = app.videoTransform.flipVertical;
+            
+            const flipBtn = appWindow.document.getElementById('flipVerticalBtn');
+            flipBtn.click();
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            if (app.videoTransform.flipVertical !== originalFlip) {
+                log('✅ Flip verticale funziona correttamente', 'success');
+                
+                // Ripristina flip originale
+                flipBtn.click();
+            } else {
+                log('❌ Flip verticale NON funziona', 'error');
+            }
+        }
+        
+        async function testAllTools() {
+            if (!(await initApp())) return;
+            
+            log('🛠️ Testando cambio tools...', 'info');
+            
+            const tools = ['move', 'scale', 'rotate', 'corner-pin'];
+            let toolsWorking = 0;
+            
+            for (const tool of tools) {
+                app.setActiveTool(tool);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                if (app.activeTool === tool) {
+                    log(`✅ Tool '${tool}' attivato correttamente`, 'success');
+                    toolsWorking++;
+                } else {
+                    log(`❌ Tool '${tool}' NON funziona`, 'error');
+                }
+            }
+            
+            log(`📊 Tools funzionanti: ${toolsWorking}/${tools.length}`, toolsWorking === tools.length ? 'success' : 'warning');
+        }
+        
+        async function testDragMovement() {
+            if (!(await initApp())) return;
+            
+            log('🖱️ Testando trascinamento mouse...', 'info');
+            
+            const canvas = app.canvas;
+            const originalPos = { x: app.videoTransform.x, y: app.videoTransform.y };
+            
+            // Assicurati che il tool move sia attivo
+            app.setActiveTool('move');
+            
+            // Simula drag dal centro del video
+            const centerX = app.videoTransform.x + (app.videoElement.videoWidth * app.videoTransform.scaleX) / 2;
+            const centerY = app.videoTransform.y + (app.videoElement.videoHeight * app.videoTransform.scaleY) / 2;
+            
+            // Simula mousedown, mousemove, mouseup
+            const rect = canvas.getBoundingClientRect();
+            
+            canvas.dispatchEvent(new MouseEvent('mousedown', {
+                clientX: rect.left + centerX,
+                clientY: rect.top + centerY,
+                bubbles: true
+            }));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            canvas.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: rect.left + centerX + 30,
+                clientY: rect.top + centerY + 20,
+                bubbles: true
+            }));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            canvas.dispatchEvent(new MouseEvent('mouseup', {
+                clientX: rect.left + centerX + 30,
+                clientY: rect.top + centerY + 20,
+                bubbles: true
+            }));
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            if (app.videoTransform.x !== originalPos.x || app.videoTransform.y !== originalPos.y) {
+                log('✅ Trascinamento mouse funziona correttamente', 'success');
+            } else {
+                log('❌ Trascinamento mouse NON funziona', 'error');
+            }
+        }
+        
+        async function runCompleteTest() {
+            log('🚀 === INIZIANDO TEST COMPLETO ===', 'info');
+            
+            const tests = [
+                { name: 'Posizione', fn: testPosition },
+                { name: 'Scala', fn: testScale },
+                { name: 'Rotazione', fn: testRotation },
+                { name: 'Inclinazione', fn: testSkew },
+                { name: 'Prospettiva', fn: testPerspective },
+                { name: 'Flip H', fn: testFlipHorizontal },
+                { name: 'Flip V', fn: testFlipVertical },
+                { name: 'Tools', fn: testAllTools },
+                { name: 'Drag', fn: testDragMovement }
+            ];
+            
+            for (const test of tests) {
+                log(`🧪 Eseguendo test: ${test.name}`, 'info');
+                await test.fn();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            
+            log('🎉 === TEST COMPLETO TERMINATO ===', 'success');
+        }
+        
+        // Update app URL
+        document.getElementById('appUrl').href = APP_URL;
+        
+        // Auto-init when page loads
+        window.addEventListener('load', () => {
+            log('🔧 Pagina di test caricata. Clicca "🚀 Test Completo" per iniziare tutti i test.', 'info');
+        });
+    </script>
+</body>
+</html>

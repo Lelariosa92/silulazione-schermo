@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Drag Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #results { background: #f5f5f5; padding: 10px; margin-top: 20px; }
+        .test-button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Drag Video su Mock</h1>
+    <p>URL App: <a href="https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev" target="_blank" id="appUrl">Apri App</a></p>
+    
+    <button class="test-button" onclick="testDragSimulation()">🎯 Test Drag Simulation</button>
+    <button class="test-button" onclick="testVideoArea()">📍 Test Video Area Detection</button>
+    <button class="test-button" onclick="testControlsUpdate()">🎚️ Test Controls Update</button>
+    
+    <div id="results">
+        <h3>📊 Risultati Test:</h3>
+        <div id="testOutput"></div>
+    </div>
+
+    <script>
+        const APP_URL = 'https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev';
+        
+        function log(message) {
+            const output = document.getElementById('testOutput');
+            output.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+        
+        async function testDragSimulation() {
+            log('🚀 Avvio test drag simulation...');
+            
+            // Apri finestra dell'app
+            const appWindow = window.open(APP_URL, 'testApp', 'width=1200,height=800');
+            
+            // Aspetta che si carichi
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            try {
+                // Accedi al ledMockupApp
+                const app = appWindow.ledMockupApp;
+                if (!app) {
+                    log('❌ App non trovata nella finestra');
+                    return;
+                }
+                
+                log('✅ App trovata, video element:', !!app.videoElement);
+                log('📍 Video position:', app.videoTransform);
+                
+                // Simula drag
+                const canvas = app.canvas;
+                const centerX = app.videoTransform.x + 160; // Centro del video mock 320x240
+                const centerY = app.videoTransform.y + 120;
+                
+                log(`🎯 Simulando drag da centro video: (${centerX}, ${centerY})`);
+                
+                // Simula mousedown
+                const mouseDownEvent = new MouseEvent('mousedown', {
+                    clientX: centerX,
+                    clientY: centerY,
+                    bubbles: true
+                });
+                canvas.dispatchEvent(mouseDownEvent);
+                
+                // Aspetta un po'
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Simula mousemove (sposta di 50px destra, 30px giù)
+                const mouseMoveEvent = new MouseEvent('mousemove', {
+                    clientX: centerX + 50,
+                    clientY: centerY + 30,
+                    bubbles: true
+                });
+                canvas.dispatchEvent(mouseMoveEvent);
+                
+                // Aspetta un po'
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Simula mouseup
+                const mouseUpEvent = new MouseEvent('mouseup', {
+                    clientX: centerX + 50,
+                    clientY: centerY + 30,
+                    bubbles: true
+                });
+                canvas.dispatchEvent(mouseUpEvent);
+                
+                // Verifica nuova posizione
+                log('📍 Nuova posizione video:', app.videoTransform);
+                log('✅ Test drag completato');
+                
+            } catch (error) {
+                log('❌ Errore durante test: ' + error.message);
+            }
+        }
+        
+        async function testVideoArea() {
+            log('🚀 Test area detection...');
+            
+            const appWindow = window.open(APP_URL, 'testApp');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            try {
+                const app = appWindow.ledMockupApp;
+                if (!app || !app.videoElement) {
+                    log('❌ App o video non trovati');
+                    return;
+                }
+                
+                const centerX = app.videoTransform.x + 160;
+                const centerY = app.videoTransform.y + 120;
+                
+                const isOverCenter = app.isMouseOverVideo(centerX, centerY);
+                const isOverOutside = app.isMouseOverVideo(10, 10);
+                
+                log(`📍 Mouse over center video: ${isOverCenter}`);
+                log(`📍 Mouse over outside (10,10): ${isOverOutside}`);
+                log('✅ Test area detection completato');
+                
+            } catch (error) {
+                log('❌ Errore: ' + error.message);
+            }
+        }
+        
+        async function testControlsUpdate() {
+            log('🚀 Test update controls...');
+            
+            const appWindow = window.open(APP_URL, 'testApp');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            try {
+                const app = appWindow.ledMockupApp;
+                if (!app || !app.videoElement) {
+                    log('❌ App o video non trovati');
+                    return;
+                }
+                
+                // Cambia posizione programmaticamente
+                const oldPos = { x: app.videoTransform.x, y: app.videoTransform.y };
+                app.videoTransform.x = 100;
+                app.videoTransform.y = 150;
+                
+                // Aggiorna controlli
+                app.updateVideoControls();
+                app.render();
+                
+                log(`📍 Posizione cambiata da (${oldPos.x}, ${oldPos.y}) a (100, 150)`);
+                
+                // Verifica UI
+                const posXInput = appWindow.document.getElementById('videoPosX');
+                const posYInput = appWindow.document.getElementById('videoPosY');
+                
+                log(`🎚️ Input PosX value: ${posXInput?.value}`);
+                log(`🎚️ Input PosY value: ${posYInput?.value}`);
+                log('✅ Test controls update completato');
+                
+            } catch (error) {
+                log('❌ Errore: ' + error.message);
+            }
+        }
+        
+        // Update app URL link
+        document.getElementById('appUrl').href = APP_URL;
+    </script>
+</body>
+</html>

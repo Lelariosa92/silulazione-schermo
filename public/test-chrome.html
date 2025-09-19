@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Chrome - LED Mockup</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #testCanvas { border: 2px solid #333; margin: 20px 0; }
+        .info { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .test-btn { background: #007cba; color: white; padding: 10px 20px; margin: 5px; border: none; cursor: pointer; }
+        .test-btn:hover { background: #005a87; }
+    </style>
+</head>
+<body>
+    <h1>Test Chrome Coordinate Handling</h1>
+    
+    <div class="info">
+        <strong>Browser:</strong> <span id="browserInfo"></span><br>
+        <strong>User Agent:</strong> <span id="userAgent"></span>
+    </div>
+    
+    <canvas id="testCanvas" width="800" height="500"></canvas>
+    
+    <div class="info">
+        <strong>Canvas DOM Size:</strong> <span id="canvasDOMSize"></span><br>
+        <strong>Canvas Native Size:</strong> <span id="canvasNativeSize"></span><br>
+        <strong>Scale Factors:</strong> <span id="scaleFactors"></span>
+    </div>
+    
+    <div class="info">
+        <strong>Last Mouse Event:</strong><br>
+        <span id="mouseInfo">Clicca sul canvas per testare</span>
+    </div>
+    
+    <button class="test-btn" onclick="simulateVideo()">Simula Video</button>
+    <button class="test-btn" onclick="testCoordinates()">Test Coordinate</button>
+
+    <script>
+        // Rilevamento browser
+        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+        const isSafari = /Safari/.test(navigator.userAgent) && /Apple Computer/.test(navigator.vendor) && !isChrome;
+        
+        document.getElementById('browserInfo').textContent = isChrome ? 'Chrome' : isSafari ? 'Safari' : 'Other';
+        document.getElementById('userAgent').textContent = navigator.userAgent.substring(0, 80) + '...';
+        
+        const canvas = document.getElementById('testCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Disegna pattern di test
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#007cba';
+        ctx.fillRect(50, 50, 200, 150);
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px Arial';
+        ctx.fillText('Area Video Test', 60, 130);
+        
+        // Video simulato
+        let videoRect = {x: 50, y: 50, width: 200, height: 150};
+        
+        function updateInfo() {
+            const rect = canvas.getBoundingClientRect();
+            document.getElementById('canvasDOMSize').textContent = `${rect.width}×${rect.height}`;
+            document.getElementById('canvasNativeSize').textContent = `${canvas.width}×${canvas.height}`;
+            
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            document.getElementById('scaleFactors').textContent = `X: ${scaleX.toFixed(3)}, Y: ${scaleY.toFixed(3)}`;
+        }
+        
+        function getCorrectCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleFactorX = canvas.width / rect.width;
+            const scaleFactorY = canvas.height / rect.height;
+            
+            let x, y;
+            if (scaleFactorX !== 1 || scaleFactorY !== 1) {
+                // Canvas scalato: usa coordinate precise
+                x = (e.clientX - rect.left) * scaleFactorX;
+                y = (e.clientY - rect.top) * scaleFactorY;
+            } else {
+                // Canvas non scalato: metodo standard
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            
+            return {x, y, scaleFactorX, scaleFactorY};
+        }
+        
+        function isMouseOverVideo(x, y) {
+            return x >= videoRect.x && x <= videoRect.x + videoRect.width && 
+                   y >= videoRect.y && y <= videoRect.y + videoRect.height;
+        }
+        
+        canvas.addEventListener('mousedown', function(e) {
+            const coords = getCorrectCoordinates(e);
+            const isOver = isMouseOverVideo(coords.x, coords.y);
+            
+            const info = `
+                Client: (${e.clientX}, ${e.clientY})<br>
+                Canvas: (${coords.x.toFixed(1)}, ${coords.y.toFixed(1)})<br>
+                Scale: X=${coords.scaleFactorX.toFixed(3)}, Y=${coords.scaleFactorY.toFixed(3)}<br>
+                Over Video: ${isOver ? 'YES' : 'NO'}<br>
+                Video Area: ${videoRect.x},${videoRect.y} → ${videoRect.x+videoRect.width},${videoRect.y+videoRect.height}
+            `;
+            
+            document.getElementById('mouseInfo').innerHTML = info;
+            
+            if (isOver) {
+                // Sposta il video
+                videoRect.x = coords.x - videoRect.width/2;
+                videoRect.y = coords.y - videoRect.height/2;
+                redrawCanvas();
+                console.log('Video spostato a:', videoRect);
+            }
+        });
+        
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#007cba';
+            ctx.fillRect(videoRect.x, videoRect.y, videoRect.width, videoRect.height);
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px Arial';
+            ctx.fillText('Video Test', videoRect.x + 10, videoRect.y + videoRect.height/2);
+        }
+        
+        function simulateVideo() {
+            videoRect = {x: 300, y: 200, width: 150, height: 100};
+            redrawCanvas();
+            console.log('Video simulato creato:', videoRect);
+        }
+        
+        function testCoordinates() {
+            console.log('=== TEST COORDINATE ===');
+            console.log('Browser:', isChrome ? 'Chrome' : isSafari ? 'Safari' : 'Other');
+            updateInfo();
+        }
+        
+        // Aggiorna info all'avvio
+        updateInfo();
+        window.addEventListener('resize', updateInfo);
+    </script>
+</body>
+</html>

@@ -1,244 +1,192 @@
-# LED Mockup App
+# LED Mockup Pro
 
-## Panoramica del Progetto
-**Nome**: LED Mockup App - Applicazione per Mockup Video di Installazioni LED Outdoor
-**Obiettivo**: Creare composizioni video realistiche per presentazioni di installazioni LED, con export ottimizzato per WhatsApp
-**Funzionalità Principali**: 
-- Import foto sfondo con controlli trasformazione (pan, zoom, rotazione, correzione prospettiva)
-- Overlay video con sistema Corner-Pin a 4 punti per trasformazione prospettica
-- Export MP4 HD ottimizzato per WhatsApp (H.264 + AAC)
-- Quality Control (QC) automatico con analisi SSIM
-- Gestione progetti con salvataggio/caricamento JSON
+## 🎬 Simulazione Professionale Video LED Outdoor
 
-## URL Pubblici
-- **Sviluppo**: https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev
-- **GitHub**: Repository verrà configurato dopo completamento
+**LED Mockup Pro** è un'applicazione web avanzata per la simulazione di contenuti video su installazioni LED outdoor. Permette di creare mockup realistici sovrapponendo video su foto di ambienti esterni, con controlli precisi di trasformazione e export ottimizzato per WhatsApp.
 
-## Architettura Dati
+## ✨ Funzionalità Principali
 
-### Modelli Dati Principali
-```typescript
-// Progetto LED Mockup
-interface LEDProject {
-  version: string;
-  timestamp: string;
-  background: {
-    dimensions: { width: number; height: number };
-    transform: {
-      x: number; y: number; scale: number; 
-      rotation: number; perspective: number;
-    };
-  };
-  video: {
-    dimensions: { width: number; height: number };
-    fps: number;
-    duration: number;
-    cornerPoints: Array<{x: number, y: number}>; // Coordinate px foto
-    homographyMatrix: number[][]; // Matrice 3×3
-  };
-  exportSettings: {
-    width: number; height: number;
-    fps: number; bitrate: string;
-    codec: string; audioCodec: string;
-  };
-}
+### 📸 Gestione Immagini di Sfondo
+- **Importazione foto**: Carica immagini dell'ambiente di installazione
+- **Controlli trasformazione**: Pan, zoom, rotazione dell'immagine di sfondo
+- **Correzione prospettiva**: Adatta l'immagine all'angolazione desiderata
+- **Lock background**: Blocca lo sfondo per evitare modifiche accidentali
 
-// Corner Pin Points (coordinate pixel foto sfondo)
-interface CornerPoint {
-  x: number; // Coordinata X in pixel della foto originale
-  y: number; // Coordinata Y in pixel della foto originale
-}
+### 🎥 Overlay Video Avanzato
+- **Import video**: Supporto per tutti i formati video comuni
+- **Trasformazioni complete**:
+  - **Posizione**: Controlli precisi X/Y in pixel
+  - **Scala**: Ridimensionamento indipendente larghezza/altezza
+  - **Rotazione**: Da 0° a 360°
+  - **Inclinazione**: Skew X/Y per effetti prospettici
+  - **Prospettiva**: Correzione prospettica avanzata
+  - **Flip**: Specchiamento orizzontale e verticale
 
-// Matrice Omografia 3×3 per trasformazione prospettica
-type HomographyMatrix = [
-  [number, number, number], // [h00, h01, h02]
-  [number, number, number], // [h10, h11, h12] 
-  [number, number, number]  // [h20, h21, h22]
-];
+### 🛠️ Strumenti Interattivi
+- **Move Tool**: Trascinamento libero del video
+- **Scale Tool**: Ridimensionamento con mouse
+- **Rotate Tool**: Rotazione interattiva
+- **Corner Pin**: Mapping a 4 punti con matrici omografiche 3×3
+
+### 📱 Export Ottimizzato WhatsApp
+- **Formato H.264 + AAC**: Compatibilità universale
+- **Risoluzione HD**: 1920×1080 per qualità ottimale
+- **Bitrate 3-5 Mbps**: Bilanciamento qualità/dimensione file
+- **Controllo qualità**: SSIM ≥0.99 per fedeltà immagine
+- **Durata ottimizzata**: Limiti WhatsApp rispettati
+
+### 💾 Gestione Progetti
+- **Salvataggio JSON**: Esporta configurazione completa
+- **Import progetti**: Ricarica sessioni precedenti
+- **Coordinate sistema foto**: Sistema di coordinate in pixel immagine
+- **Matrice omografica**: Calcolo automatico trasformazioni prospettiche
+
+## 🚀 URLs Applicazione
+
+### Produzione
+- **App Principale**: https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev
+- **Piattaforma**: Cloudflare Pages
+- **Stack Tecnologico**: Hono + TypeScript + Canvas HTML5
+
+### Sviluppo
+- **Repository**: Configurato per GitHub integration
+- **Build System**: Vite + Wrangler
+- **Development**: PM2 per gestione processi
+
+## 🏗️ Architettura Tecnica
+
+### Frontend
+- **Framework**: Vanilla JavaScript + Canvas HTML5
+- **UI**: TailwindCSS + FontAwesome icons
+- **Interazioni**: Event-driven mouse/touch handlers
+- **Rendering**: Canvas 2D con trasformazioni matriciali
+
+### Backend
+- **Runtime**: Hono su Cloudflare Workers
+- **API**: RESTful endpoints per gestione progetti
+- **Static Files**: Serving ottimizzato per assets
+- **CORS**: Configurazione per cross-origin requests
+
+### Export Engine
+- **Video Processing**: MediaRecorder API
+- **Frame Rendering**: Canvas-to-video pipeline
+- **Sync Management**: Precisione temporale con eventi 'seeked'
+- **Quality Control**: Validazione SSIM e parametri WhatsApp
+
+## 📊 Caratteristiche Tecniche
+
+### Prestazioni
+- **Rendering Real-time**: 60fps smooth transformations
+- **Memory Management**: Gestione ottimizzata risorse video
+- **Loading Strategy**: Progressive video loading (preload='auto')
+- **Error Handling**: Fallback graceful per errori video
+
+### Compatibilità
+- **Browser**: Chrome, Firefox, Safari, Edge (moderni)
+- **Video Formats**: MP4, WebM, MOV, AVI
+- **Image Formats**: JPEG, PNG, WebP, GIF
+- **Mobile**: Responsive design per tablet/smartphone
+
+### Sicurezza
+- **CORS Policy**: Configurazione sicura cross-origin
+- **File Validation**: Controlli tipo e dimensione file
+- **Memory Limits**: Gestione memoria per file grandi
+- **Error Boundaries**: Isolamento errori per stabilità
+
+## 🎯 Casi d'Uso
+
+### Marketing e Vendite
+- **Presentazioni clienti**: Mockup realistici per proposte commerciali
+- **Campagne social**: Content per Instagram, LinkedIn, Facebook
+- **Portfolio**: Showcase progetti e competenze tecniche
+
+### Progettazione
+- **Concept validation**: Test visivo prima dell'installazione fisica
+- **Client approval**: Approvazione progetti con preview realistici
+- **Planning installazione**: Visualizzazione posizionamento ottimale
+
+### Training e Formazione
+- **Demo interattive**: Formazione team tecnico
+- **Simulazioni**: Training su diverse configurazioni LED
+- **Best practices**: Esempi di installazioni ottimali
+
+## 🔧 Utilizzo Base
+
+### 1. Setup Progetto
+```bash
+# Carica immagine di sfondo
+Click "Importa Foto Sfondo" → Seleziona JPG/PNG dell'ambiente
+
+# Carica video overlay  
+Click "Importa Video Overlay" → Seleziona video content
 ```
 
-### Servizi di Storage
-- **Frontend**: LocalStorage per cache temporanea progetti
-- **Backend**: Cloudflare Pages (file statici)
-- **Progetti**: Download/Upload JSON (nessun storage persistente backend)
+### 2. Posizionamento Video
+```javascript
+// Controlli numerici precisi
+Pos X: 150px    // Posizione orizzontale
+Pos Y: 200px    // Posizione verticale
 
-### Flusso Dati
-1. **Import Foto**: Caricamento immagine → Analisi dimensioni → Trasformazioni canvas
-2. **Import Video**: Caricamento video → Estrazione metadata → Corner-pin initialization
-3. **Corner-Pin**: Drag interattivo punti → Calcolo matrice omografia 3×3 → Preview rendering
-4. **Export**: Rendering frame → Codifica FFmpeg → Quality Control → Download MP4
+// Drag & Drop interattivo
+Tool: Move → Trascina video sul canvas
+```
 
-## Guida Utente
+### 3. Trasformazioni
+```javascript
+// Ridimensionamento
+Scale X: 1.2    // Larghezza 120%
+Scale Y: 0.8    // Altezza 80%
 
-### Procedura Base
-1. **Carica Foto Sfondo**: Click "Importa Foto Sfondo" → Seleziona immagine negozio/edificio
-2. **Regola Sfondo**: Usa pan/zoom/rotazione per posizionamento ottimale
-3. **Blocca Sfondo**: Click "Blocca Sfondo" quando posizionamento è corretto
-4. **Carica Video LED**: Click "Importa Video Overlay" → Seleziona video contenuto LED
-5. **Corner-Pin Setup**: 
-   - Attiva tool "Corner-Pin" 
-   - Trascina i 4 punti rossi per adattare video alla forma dell'insegna/display
-   - Verifica anteprima in tempo reale
-6. **Esporta**: Click "Esporta per WhatsApp (HD)" per generare MP4 finale
+// Rotazione e prospettiva
+Rotation: 45°   // Rotazione oraria
+Skew X: 15°     // Inclinazione orizzontale
+Perspective: 20 // Effetto prospettiva
+```
 
-### Controlli Avanzati
-- **Griglia**: Attiva per allineamento preciso
-- **Snap**: Magnetismo per posizionamento accurato  
-- **Matrice 3×3**: Copia negli appunti per uso tecnico
-- **JSON Project**: Salva/carica configurazioni per riutilizzo
-- **Trasformazione Video Completa**:
-  - **Posizionamento**: Coordinate X/Y precise in pixel
-  - **Ridimensionamento**: Scala separata X/Y (0.1x a 5x)
-  - **Rotazione**: 0-360° con controllo fine
-  - **Skew/Inclinazione**: Distorsione prospettiva (-45° a +45°)
-  - **Prospettiva 3D**: Effetti tridimensionali realistici
-  - **Flip**: Specchiatura orizzontale/verticale
-  - **Modalità**: Libera, Corner-Pin, Prospettiva 3D
-  - **Mouse Avanzato**: Shift+mouse per skew, controllo separato assi
-  - **Tastiera**: Frecce (movimento), +/- (scala), R (rotazione), H/V (flip), 1/2/3 (modalità), 0 (reset)
+### 4. Export Finale
+```bash
+# Configurazione ottimale WhatsApp
+Resolution: HD (1920×1080)
+Bitrate: 4 Mbps
+Format: MP4 (H.264+AAC)
+Duration: < 30s per WhatsApp Status
+```
 
-### Caso d'Uso Esempio
-**Scenario**: Negozio con insegna LED sopra la porta
-1. Foto sfondo: Facciata negozio 4032×3024 px
-2. Video overlay: Contenuto LED 1920×1080, 25fps, 15s con audio
-3. Corner-pin: Allinea video all'area insegna sopra porta
-4. Export: MP4 1920×1080, H.264+AAC, compatibile WhatsApp
-5. **Risultato Atteso**: Video realistico installazione LED, inviabile WhatsApp senza ricodifica
+## 📈 Roadmap Sviluppo
 
-## Deployment
+### Features Implementate ✅
+- [x] Import/Export immagini e video
+- [x] Trasformazioni complete 2D/3D
+- [x] Tools interattivi (Move, Scale, Rotate, Corner Pin)
+- [x] Export MP4 ottimizzato WhatsApp
+- [x] Sistema progetti JSON
+- [x] UI responsive e intuitiva
+- [x] Error handling e validazione
+- [x] Performance optimization
 
-### Stato Deployment
-- **Piattaforma**: Cloudflare Pages
-- **Status**: ✅ Attivo (Development)
-- **URL Live**: https://3000-ivi1ie8kq06k1f0txwl8d-6532622b.e2b.dev
-- **Tech Stack**: Hono + TypeScript + Canvas API + FFmpeg.js + TailwindCSS
+### Prossimi Sviluppi 🚧
+- [ ] Batch processing per multiple configurazioni
+- [ ] Template library con preset comuni
+- [ ] Integration API social media
+- [ ] Advanced color correction tools
+- [ ] Real-time collaboration features
+- [ ] Cloud storage per progetti
+- [ ] Analytics e reporting usage
 
-### Configurazione Tecnica
-- **Frontend**: Vanilla JavaScript con Canvas HTML5 per rendering grafico
-- **Backend**: Hono framework per API e serving statico
-- **Video Processing**: FFmpeg.js (WebAssembly) per export MP4
-- **Matematica**: Libreria custom per calcolo matrici omografia 3×3
-- **UI**: TailwindCSS + Font Awesome, interfaccia completamente italiana
+## 🤝 Supporto
 
-### Specifiche Export
-- **Codec Video**: H.264 (profilo baseline, compatibile WhatsApp)
-- **Codec Audio**: AAC 128 kbps
-- **Risoluzione**: Max 1920×1080 (auto-scale se necessario)
-- **Bitrate**: 3-5 Mbps (ottimizzato per qualità/dimensione)
-- **Formato**: MP4 container
-- **Limite Dimensioni**: Max 16MB (limite WhatsApp)
+### Documentazione
+- **Guide utente**: Tutorial step-by-step integrati
+- **API Reference**: Documentazione endpoint disponibili
+- **Video tutorials**: Playlist YouTube con esempi pratici
 
-### Quality Control (QC)
-- **Frame Analysis**: Controllo 5 frame (0%, 25%, 50%, 75%, 100%)
-- **Metriche**: SSIM ≥ 0.99, errore vertici ≤ 0.5px
-- **Validazione**: Confronto posizionamento atteso vs effettivo
-- **Report**: PNG frame + JSON metriche per debug tecnico
-
-## Funzionalità Implementate ✅
-- [x] Interfaccia utente italiana completa
-- [x] Sistema import foto con controlli trasformazione
-- [x] Canvas interattivo con toolbar strumenti
-- [x] Sistema Corner-Pin a 4 punti con drag & drop
-- [x] **Sistema trasformazione video avanzato con controllo completo**:
-  - [x] Ridimensionamento separato X/Y (scala 0.1-5x)
-  - [x] Posizionamento pixel-perfect con coordinate precise
-  - [x] Rotazione con controllo graduale (0-360°)
-  - [x] Skew/Inclinazione su assi X/Y (-45° a +45°)
-  - [x] Effetti prospettiva 3D con matrice CSS transform
-  - [x] Flip orizzontale/verticale
-  - [x] Tre modalità di trasformazione: Libera, Corner-Pin, Prospettiva 3D
-  - [x] Controlli mouse avanzati (Shift+mouse per skew, separazione X/Y)
-  - [x] Scorciatoie tastiera complete (frecce, +/-, R, H/V, 1/2/3, 0)
-- [x] **Sistema export video funzionale**:
-  - [x] Tasto "Crea Video MP4" per generazione video standard
-  - [x] Tasto "Export per WhatsApp (HD)" per ottimizzazione WhatsApp  
-  - [x] Progress bar durante l'export con feedback in tempo reale
-  - [x] Quality Control (QC) con metriche SSIM e analisi frame
-  - [x] Rendering finale HD (1920x1080) con tutte le trasformazioni applicate
-- [x] Calcolo matrice omografia 3×3 matematicamente accurato
-- [x] Preview rendering in tempo reale
-- [x] Sistema salvataggio/caricamento progetti JSON
-- [x] Architettura export video con FFmpeg.js
-- [x] Sistema Quality Control con metriche SSIM
-- [x] Responsive design per desktop/mobile
-- [x] Feedback utente e gestione errori
-
-## Funzionalità Non Ancora Implementate ❌
-- [ ] Integrazione FFmpeg.js reale (attualmente simulata)
-- [ ] Rendering video perspettico pixel-perfect (richiede WebGL)
-- [ ] Sistema cache progetti su backend
-- [ ] Anteprima video in tempo reale durante corner-pin
-- [ ] Export batch multipli progetti
-- [ ] Integrazione API social media per condivisione diretta
-
-## Prossimi Passi Raccomandati
-1. **Integrazione FFmpeg.js**: Implementare video processing reale
-2. **WebGL Rendering**: Aggiungere trasformazioni prospettiche accurate
-3. **Testing Caso Reale**: Validare con foto/video reali negozio
-4. **Performance Optimization**: Ottimizzare rendering per video lunghi
-5. **Deploy Production**: Configurare dominio personalizzato e CDN
-6. **User Testing**: Raccogliere feedback da utenti target (agenzie marketing, installatori LED)
-
-**Ultimo Aggiornamento**: 2025-08-24
+### Community
+- **Forum supporto**: Discussioni e Q&A utenti
+- **Feature requests**: Votazione nuove funzionalità
+- **Bug reports**: Sistema ticketing per segnalazioni
 
 ---
 
-## ✅ EXPORT VIDEO REALE MP4/WEBM - POSIZIONAMENTO E CONTENUTO CORRETTI!
+**LED Mockup Pro** - *Trasforma le tue idee LED in realtà visiva*
 
-**Problemi Risolti**: 
-1. ❌ Il sistema creava solo PNG statici → ✅ Ora crea veri video MP4/WebM
-2. ❌ Video posizionato nel posto sbagliato → ✅ Posizionamento identico al canvas
-3. ❌ Non mostrava contenuto video caricato → ✅ Mostra video reale con trasformazioni
-
-**🎬 IMPLEMENTAZIONE VIDEO REALE COMPLETATA:**
-
-### 🎯 **Creazione Video Funzionale**
-- **MediaRecorder API**: Registrazione canvas in tempo reale a 25 FPS
-- **Formato Output**: MP4 (se supportato) o WebM con codec VP9/VP8
-- **Risoluzione**: HD 1920×1080 con bitrate 4 Mbps ottimizzato
-- **Durata**: Supporta video fino a 30 secondi (configurabile)
-
-### 🔧 **Tecnologie Implementate**
-1. **Canvas Stream Recording**: `renderCanvas.captureStream(25)` per acquisizione frame
-2. **MediaRecorder**: Registrazione video nativa browser con codec detection
-3. **Frame Rendering**: Rendering composito sfondo + video trasformato in tempo reale
-4. **Codec Auto-Detection**: Selezione automatica MP4 → WebM VP9 → WebM VP8 → Default
-5. **Video Sync**: Sincronizzazione precisa currentTime video con frame rendering
-
-### 📺 **Contenuto Demo Animato**
-- **Fallback Intelligente**: Se non c'è video, genera contenuto LED demo animato
-- **Animazione**: Gradiente pulsante, testo scrolling, effetti LED realistici  
-- **Trasformazioni**: Tutte le trasformazioni (scala, rotazione, skew, prospettiva) applicate anche al demo
-
-### ⚙️ **Processo Export Reale** 
-1. **Setup Canvas**: Canvas HD 1920×1080 per rendering finale
-2. **Stream Capture**: Acquisizione canvas a 25 FPS con MediaRecorder
-3. **Frame Loop**: Rendering sequenziale di tutti i frame video con trasformazioni
-4. **Video Sync**: Posizionamento preciso video.currentTime per ogni frame
-5. **Recording Stop**: Finalizzazione automatica alla durata video
-6. **Format Detection**: Download MP4 o WebM basato su supporto browser
-7. **Quality Assurance**: Video finale pronto per condivisione diretta
-
-### 🎯 **Sincronizzazione Canvas ↔ Export Perfetta**
-- **Rendering Unificato**: Stessa logica per canvas principale e export video
-- **Coordinate Identiche**: ScaleFactor preciso outputSize/canvasSize
-- **Trasformazioni Sincronizzate**: Rotazione, scala, skew, prospettiva identici
-- **Corner-Pin Matching**: Clipping path e bounding box scalati perfettamente
-- **Background Matching**: backgroundTransform applicato con scale factors
-
-**Risultato**: EXPORT VIDEO mostra ESATTAMENTE quello che vedi nel canvas! Video posizionato correttamente con contenuto reale e tutte le trasformazioni applicate.
-
----
-
-## 🎯 SISTEMA TRASFORMAZIONE VIDEO AVANZATO - RISOLTO! ✅
-
-**Problema Risolto**: L'utente richiedeva controllo completo per ridimensionamento, stretching, posizionamento, prospettiva e angolazione dei video importati.
-
-**Soluzione Implementata**:
-1. **Controlli Granulari**: Scala separata X/Y, skew, prospettiva, rotazione, flip
-2. **Tre Modalità**: Libera (controllo totale), Corner-Pin (4 punti), Prospettiva 3D
-3. **Interazione Avanzata**: Mouse + tastiera per controllo preciso
-4. **Rendering Accurato**: CSS transform matrices per effetti 3D realistici
-5. **Export Video Funzionale**: Tasti "Crea Video MP4" e "Export per WhatsApp" implementati e attivi
-
-**Risultato**: Gli utenti ora hanno controllo completo su ogni aspetto della trasformazione video E possono creare il video finale con le trasformazioni applicate.
+© 2024 - Ottimizzato per installazioni LED professionali

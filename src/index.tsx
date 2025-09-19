@@ -10,6 +10,13 @@ app.use('*', cors())
 // Serve static files
 app.use('/static/*', serveStatic({ root: './public' }))
 
+// Serve test files from public root (for debugging)
+app.use('/test-*', serveStatic({ root: './public' }))
+
+// Serve test HTML files from project root (for debugging)
+app.get('/test_drag.html', serveStatic({ root: './' }))
+app.get('/test_all_controls.html', serveStatic({ root: './' }))
+
 // API routes for project management
 app.post('/api/project/save', async (c) => {
   const projectData = await c.req.json()
@@ -41,7 +48,7 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>LED Mockup App - Installazioni LED Outdoor</title>
+        <title>LED Mockup Pro - Simulazione Video LED Outdoor</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>
@@ -148,7 +155,7 @@ app.get('/', (c) => {
                 <div class="flex justify-between items-center py-4">
                     <h1 class="text-2xl font-bold text-gray-900">
                         <i class="fas fa-video text-blue-600 mr-2"></i>
-                        LED Mockup App
+                        LED Mockup Pro
                     </h1>
                     <div class="flex gap-2">
                         <button id="exportBtn" class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors">
@@ -173,7 +180,7 @@ app.get('/', (c) => {
                             <button class="tool-btn" data-tool="move">
                                 <i class="fas fa-arrows-alt"></i> Sposta
                             </button>
-                            <button class="tool-btn" data-tool="scale">
+                            <button class="tool-btn" data-tool="scale" id="scaleBtn">
                                 <i class="fas fa-expand-arrows-alt"></i> Scala
                             </button>
                             <button class="tool-btn" data-tool="rotate">
@@ -257,6 +264,8 @@ app.get('/', (c) => {
                         </div>
                     </div>
 
+
+
                     <!-- Video Overlay Panel -->
                     <div class="panel">
                         <h3 class="font-semibold text-gray-800 mb-3">
@@ -277,51 +286,35 @@ app.get('/', (c) => {
 
                             <div class="grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <label class="block text-gray-600">Pos X:</label>
-                                    <input type="number" id="videoPosX" class="w-full border rounded px-2 py-1" value="0" step="1">
+                                    <label class="block text-gray-600 font-semibold">Pos X:</label>
+                                    <input type="number" id="videoPosX" class="w-full border rounded px-2 py-1" value="0" step="1"
+                                           oninput="window.ledMockupApp?.updateVideoTransform()"
+                                           onchange="window.ledMockupApp?.updateVideoTransform()">
                                 </div>
                                 <div>
-                                    <label class="block text-gray-600">Pos Y:</label>
-                                    <input type="number" id="videoPosY" class="w-full border rounded px-2 py-1" value="0" step="1">
+                                    <label class="block text-gray-600 font-semibold">Pos Y:</label>
+                                    <input type="number" id="videoPosY" class="w-full border rounded px-2 py-1" value="0" step="1"
+                                           oninput="window.ledMockupApp?.updateVideoTransform()"
+                                           onchange="window.ledMockupApp?.updateVideoTransform()">
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <label class="block text-gray-600">Scala X (Larghezza):</label>
-                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="5" step="0.05" value="1">
-                                    <span id="videoScaleXValue">100%</span>
+                                    <label class="block text-gray-600 font-semibold">Scala X (%):</label>
+                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="5" step="0.05" value="1"
+                                           oninput="window.ledMockupApp?.updateVideoTransform()">
+                                    <span id="videoScaleXValue" class="text-xs">100%</span>
                                 </div>
                                 <div>
-                                    <label class="block text-gray-600">Scala Y (Altezza):</label>
-                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="5" step="0.05" value="1">
-                                    <span id="videoScaleYValue">100%</span>
+                                    <label class="block text-gray-600 font-semibold">Scala Y (%):</label>
+                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="5" step="0.05" value="1"
+                                           oninput="window.ledMockupApp?.updateVideoTransform()">
+                                    <span id="videoScaleYValue" class="text-xs">100%</span>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-2 text-xs mb-2">
-                                <div>
-                                    <label class="block text-gray-600">Posizione X:</label>
-                                    <input type="number" id="videoPosX" class="w-full border rounded px-1" value="0" step="1">
-                                </div>
-                                <div>
-                                    <label class="block text-gray-600">Posizione Y:</label>
-                                    <input type="number" id="videoPosY" class="w-full border rounded px-1" value="0" step="1">
-                                </div>
-                            </div>
 
-                            <div class="grid grid-cols-2 gap-2 text-xs mb-2">
-                                <div>
-                                    <label class="block text-gray-600">Scala X:</label>
-                                    <input type="range" id="videoScaleX" class="w-full" min="0.1" max="5" step="0.1" value="1">
-                                    <span id="videoScaleXValue">100%</span>
-                                </div>
-                                <div>
-                                    <label class="block text-gray-600">Scala Y:</label>
-                                    <input type="range" id="videoScaleY" class="w-full" min="0.1" max="5" step="0.1" value="1">
-                                    <span id="videoScaleYValue">100%</span>
-                                </div>
-                            </div>
 
                             <div class="grid grid-cols-3 gap-2 text-sm">
                                 <div>
@@ -411,6 +404,11 @@ app.get('/', (c) => {
                             <button id="debugVideoBtn" class="w-full bg-orange-600 text-white py-2 px-3 rounded text-sm hover:bg-orange-700">
                                 <i class="fas fa-bug mr-2"></i>
                                 Debug Video
+                            </button>
+
+                            <button id="diagnosticBtn" class="w-full bg-gray-600 text-white py-2 px-3 rounded text-sm hover:bg-gray-700" style="display: none;">
+                                <i class="fas fa-stethoscope mr-2"></i>
+                                Diagnosi Sistema
                             </button>
 
                             <div class="text-xs text-gray-600">
