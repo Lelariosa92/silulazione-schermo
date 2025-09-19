@@ -92,21 +92,36 @@ class LEDMockupApp {
     }
 
     /**
-     * CROSS-BROWSER FIX: Setup dimensioni canvas reali
+     * CROSS-BROWSER FIX: Setup dimensioni canvas reali responsive
      */
     setupCanvasDimensions() {
-        const targetWidth = 800;
-        const targetHeight = 600;
+        // Trova il container del canvas
+        const container = this.canvas.parentElement;
+        if (!container) {
+            console.error('❌ Canvas container not found!');
+            return;
+        }
+        
+        // Calcola dimensioni responsive
+        const containerWidth = container.clientWidth || 800;
+        const containerHeight = container.clientHeight || 600;
+        
+        // Usa dimensioni container con padding
+        const targetWidth = Math.max(400, containerWidth - 40);
+        const targetHeight = Math.max(300, containerHeight - 40);
         
         // Imposta dimensioni via attributi (non solo CSS)
         this.canvas.width = targetWidth;
         this.canvas.height = targetHeight;
         
-        // Assicura coerenza CSS
+        // Assicura coerenza CSS e visibilità
         this.canvas.style.width = targetWidth + 'px';
         this.canvas.style.height = targetHeight + 'px';
+        this.canvas.style.display = 'block';
+        this.canvas.style.border = '2px solid #e5e7eb';
+        this.canvas.style.backgroundColor = '#f9fafb';
         
-        console.log(`📐 Canvas setup: ${targetWidth}×${targetHeight}`);
+        console.log(`📐 Canvas setup: ${targetWidth}×${targetHeight} (container: ${containerWidth}×${containerHeight})`);
     }
 
     /**
@@ -1688,25 +1703,56 @@ class LEDMockupApp {
     /**
      * Aggiorna trasformazione video dai controlli
      */
+    /**
+     * CROSS-BROWSER FIX: Update video transform da controlli UI
+     */
     updateVideoTransform() {
-        if (!this.videoElement) return;
+        console.log('🎚️ updateVideoTransform chiamato da controlli UI');
+        
+        // Leggi valori dai controlli
+        const posX = toSafeNum(document.getElementById('videoPosX')?.value || 0);
+        const posY = toSafeNum(document.getElementById('videoPosY')?.value || 0);
+        const scaleX = toSafeNum(document.getElementById('videoScaleX')?.value || 1);
+        const scaleY = toSafeNum(document.getElementById('videoScaleY')?.value || 1);
+        const rotation = toSafeNum(document.getElementById('rotationSlider')?.value || 0);
+        const skewX = toSafeNum(document.getElementById('videoSkewX')?.value || 0);
+        const skewY = toSafeNum(document.getElementById('videoSkewY')?.value || 0);
+        const perspective = toSafeNum(document.getElementById('videoPerspective')?.value || 0);
 
-        this.videoTransform.x = parseInt(document.getElementById('videoPosX').value) || 0;
-        this.videoTransform.y = parseInt(document.getElementById('videoPosY').value) || 0;
-        this.videoTransform.scaleX = parseFloat(document.getElementById('videoScaleX').value) || 1;
-        this.videoTransform.scaleY = parseFloat(document.getElementById('videoScaleY').value) || 1;
-        this.videoTransform.rotation = parseInt(document.getElementById('rotationSlider').value) || 0;
-        this.videoTransform.skewX = parseInt(document.getElementById('videoSkewX').value) || 0;
-        this.videoTransform.skewY = parseInt(document.getElementById('videoSkewY').value) || 0;
-        this.videoTransform.perspective = parseInt(document.getElementById('videoPerspective').value) || 0;
+        // CROSS-BROWSER FIX: Aggiorna stato globale direttamente
+        appState.videoTransform.x = posX;
+        appState.videoTransform.y = posY;
+        appState.videoTransform.scaleX = scaleX;
+        appState.videoTransform.scaleY = scaleY;
+        appState.videoTransform.rotation = rotation;
+        appState.videoTransform.skewX = skewX;
+        appState.videoTransform.skewY = skewY;
+        appState.videoTransform.perspective = perspective;
 
-        // Aggiorna labels
-        document.getElementById('videoScaleXValue').textContent = Math.round(this.videoTransform.scaleX * 100) + '%';
-        document.getElementById('videoScaleYValue').textContent = Math.round(this.videoTransform.scaleY * 100) + '%';
-        document.getElementById('rotationValue').textContent = this.videoTransform.rotation + '°';
-        document.getElementById('videoSkewXValue').textContent = this.videoTransform.skewX + '°';
-        document.getElementById('videoSkewYValue').textContent = this.videoTransform.skewY + '°';
-        document.getElementById('videoPerspectiveValue').textContent = this.videoTransform.perspective;
+        console.log('🎯 Stato video aggiornato:', appState.videoTransform);
+
+        // Aggiorna labels UI (con controlli di esistenza)
+        const scaleXValue = document.getElementById('videoScaleXValue');
+        if (scaleXValue) scaleXValue.textContent = Math.round(scaleX * 100) + '%';
+        
+        const scaleYValue = document.getElementById('videoScaleYValue');
+        if (scaleYValue) scaleYValue.textContent = Math.round(scaleY * 100) + '%';
+        
+        const rotationValue = document.getElementById('rotationValue');
+        if (rotationValue) rotationValue.textContent = rotation + '°';
+        
+        const skewXValue = document.getElementById('videoSkewXValue');
+        if (skewXValue) skewXValue.textContent = skewX + '°';
+        
+        const skewYValue = document.getElementById('videoSkewYValue');
+        if (skewYValue) skewYValue.textContent = skewY + '°';
+        
+        const perspectiveValue = document.getElementById('videoPerspectiveValue');
+        if (perspectiveValue) perspectiveValue.textContent = perspective;
+
+        // Salva stato e renderizza
+        this.savePersistedState();
+        this.render();
 
         console.log('Video transform updated:', this.videoTransform);
         this.render();

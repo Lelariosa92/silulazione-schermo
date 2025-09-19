@@ -210,8 +210,8 @@ app.get('/', (c) => {
                     </div>
 
                     <!-- Canvas Container -->
-                    <div class="canvas-container" style="width: 100%; height: 500px;">
-                        <canvas id="mainCanvas" width="800" height="500"></canvas>
+                    <div class="canvas-container" style="width: 100%; min-height: 400px; height: 60vh; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="mainCanvas" width="800" height="500" style="max-width: 100%; max-height: 100%; border: 2px solid #e5e7eb; background: #f9fafb;"></canvas>
                         <!-- Corner pin points will be added dynamically -->
                     </div>
 
