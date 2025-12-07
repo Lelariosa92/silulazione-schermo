@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Mockup Pro V2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --success: #10b981;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        #mainCanvas {
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            image-rendering: -webkit-optimize-contrast;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+        .canvas-container {
+            position: relative;
+            background: linear-gradient(45deg, #374151 25%, transparent 25%),
+                        linear-gradient(-45deg, #374151 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #374151 75%),
+                        linear-gradient(-45deg, transparent 75%, #374151 75%);
+            background-size: 20px 20px;
+            background-color: #4b5563;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .panel-modern {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 16px;
+        }
+        .panel-header i { font-size: 1.25rem; color: var(--primary); }
+        .panel-header h3 { font-weight: 700; font-size: 1rem; color: #1f2937; }
+        .toolbar-modern {
+            background: rgba(31, 41, 55, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .tool-group {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        .tool-btn-v2 {
+            background: transparent;
+            color: #9ca3af;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tool-btn-v2:hover { background: rgba(255, 255, 255, 0.15); color: white; }
+        .tool-btn-v2.active { background: var(--primary); color: white; }
+        .range-modern {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e5e7eb;
+        }
+        .range-modern::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+        }
+        .control-group {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .control-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .control-group-title { font-weight: 600; color: #374151; font-size: 0.875rem; }
+        .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .quick-btn {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .quick-btn:hover { border-color: var(--primary); background: #eff6ff; }
+        .quick-btn i { font-size: 1.25rem; }
+        .quick-btn span { font-size: 0.7rem; font-weight: 500; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.5); }
+        .btn-success { background: linear-gradient(135deg, var(--success) 0%, #059669 100%); }
+        .import-zone {
+            border: 3px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #f8fafc;
+        }
+        .import-zone:hover { border-color: var(--primary); background: #eff6ff; }
+        .import-zone i { font-size: 2rem; margin-bottom: 8px; }
+        .value-display {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            background: #1f2937;
+            color: #10b981;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .progress-modern { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+        .progress-modern-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-gray-900/80 backdrop-blur-lg border-b border-gray-700 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-tv text-white"></i>
+                    </div>
+                    LED Mockup Pro
+                    <span class="text-xs bg-green-500 text-white px-2 py-1 rounded-full">V2</span>
+                </h1>
+                <button id="exportBtnMain" class="btn-success">
+                    <i class="fab fa-whatsapp"></i>
+                    Esporta WhatsApp
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8">
+                <div class="toolbar-modern">
+                    <div class="tool-group">
+                        <button class="tool-btn-v2 active" data-tool="move"><i class="fas fa-arrows-alt"></i><span>Sposta</span></button>
+                        <button class="tool-btn-v2" data-tool="scale"><i class="fas fa-expand"></i><span>Scala</span></button>
+                        <button class="tool-btn-v2" data-tool="rotate"><i class="fas fa-redo"></i><span>Ruota</span></button>
+                    </div>
+                    <div class="tool-group">
+                        <button class="tool-btn-v2" data-tool="corner-pin"><i class="fas fa-vector-square"></i><span>Prospettiva</span></button>
+                    </div>
+                    <div class="flex-1"></div>
+                    <div class="tool-group">
+                        <button class="tool-btn-v2" id="resetAllBtn"><i class="fas fa-undo"></i></button>
+                        <button class="tool-btn-v2" id="fitAllBtn"><i class="fas fa-compress-arrows-alt"></i></button>
+                        <button class="tool-btn-v2" id="gridBtnV2"><i class="fas fa-th"></i></button>
+                    </div>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="mainCanvas" width="900" height="550"></canvas>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <label class="import-zone cursor-pointer block">
+                        <input type="file" id="backgroundFile" class="hidden" accept="image/*">
+                        <i class="fas fa-image text-blue-500"></i>
+                        <div class="font-semibold text-gray-700">Carica Sfondo</div>
+                        <div class="text-xs text-gray-500">JPG, PNG, WebP</div>
+                    </label>
+                    <label class="import-zone cursor-pointer block">
+                        <input type="file" id="videoFile" class="hidden" accept="video/*">
+                        <i class="fas fa-video text-purple-500"></i>
+                        <div class="font-semibold text-gray-700">Carica Video</div>
+                        <div class="text-xs text-gray-500">MP4, WebM, MOV</div>
+                    </label>
+                </div>
+                <button id="testBackgroundBtn" class="mt-3 w-full bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 transition text-sm">
+                    <i class="fas fa-flask mr-2"></i>Carica Demo (Test Rapido)
+                </button>
+            </div>
+
+            <div class="lg:col-span-4 space-y-4">
+                <div class="panel-modern">
+                    <div class="panel-header">
+                        <i class="fas fa-image"></i>
+                        <h3>Sfondo</h3>
+                        <div class="flex-1"></div>
+                        <button id="lockBackgroundBtn" class="text-gray-400 hover:text-blue-500"><i class="fas fa-unlock"></i></button>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-group-header">
+                            <span class="control-group-title">Zoom</span>
+                            <span class="value-display" id="zoomLevel">100%</span>
+                        </div>
+                        <input type="range" class="range-modern" id="bgZoomSlider" min="10" max="300" value="100">
+                    </div>
+                    <div class="text-sm text-gray-600">Dimensioni: <span id="backgroundDimensions" class="font-mono">-</span></div>
+                </div>
+
+                <div class="panel-modern">
+                    <div class="panel-header">
+                        <i class="fas fa-film"></i>
+                        <h3>Video Overlay</h3>
+                    </div>
+                    <div class="quick-actions mb-4">
+                        <button class="quick-btn" id="centerVideoBtn"><i class="fas fa-crosshairs text-blue-500"></i><span>Centra</span></button>
+                        <button class="quick-btn" id="fitVideoBtn"><i class="fas fa-expand text-green-500"></i><span>Adatta</span></button>
+                        <button class="quick-btn" id="flipHorizontalBtn"><i class="fas fa-arrows-alt-h text-purple-500"></i><span>Flip H</span></button>
+                        <button class="quick-btn" id="flipVerticalBtn"><i class="fas fa-arrows-alt-v text-purple-500"></i><span>Flip V</span></button>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-group-header"><span class="control-group-title">Posizione</span></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-gray-500 block mb-1">X</label>
+                                <input type="number" id="videoPosX" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" value="0">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500 block mb-1">Y</label>
+                                <input type="number" id="videoPosY" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-group-header">
+                            <span class="control-group-title">Scala</span>
+                            <label class="flex items-center gap-2 text-xs">
+                                <input type="checkbox" id="lockAspectRatio" checked class="rounded">
+                                Blocca proporzioni
+                            </label>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Larghezza</span>
+                                    <span class="value-display" id="videoScaleXValue">100%</span>
+                                </div>
+                                <input type="range" class="range-modern" id="videoScaleX" min="0.1" max="3" step="0.05" value="1">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                    <span>Altezza</span>
+                                    <span class="value-display" id="videoScaleYValue">100%</span>
+                                </div>
+                                <input type="range" class="range-modern" id="videoScaleY" min="0.1" max="3" step="0.05" value="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-group-header">
+                            <span class="control-group-title">Rotazione</span>
+                            <span class="value-display" id="rotationValue">0°</span>
+                        </div>
+                        <input type="range" class="range-modern" id="rotationSlider" min="0" max="360" value="0">
+                    </div>
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-sm font-semibold text-gray-600 hover:text-blue-600">
+                            <i class="fas fa-cog mr-2"></i>Controlli Avanzati
+                        </summary>
+                        <div class="mt-3 space-y-3 pt-3 border-t">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">Skew X</label>
+                                    <input type="range" class="range-modern" id="videoSkewX" min="-45" max="45" value="0">
+                                    <span class="text-xs text-gray-400" id="videoSkewXValue">0°</span>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">Skew Y</label>
+                                    <input type="range" class="range-modern" id="videoSkewY" min="-45" max="45" value="0">
+                                    <span class="text-xs text-gray-400" id="videoSkewYValue">0°</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500 block mb-1">Prospettiva 3D</label>
+                                <input type="range" class="range-modern" id="videoPerspective" min="-50" max="50" value="0">
+                                <span class="text-xs text-gray-400" id="videoPerspectiveValue">0</span>
+                            </div>
+                            <select id="transformMode" class="hidden"><option value="free">Libera</option></select>
+                            <input type="hidden" id="videoWidth" value="0">
+                            <input type="hidden" id="videoHeight" value="0">
+                            <input type="hidden" id="vertex1" value="0,0">
+                            <input type="hidden" id="vertex2" value="0,0">
+                            <input type="hidden" id="vertex3" value="0,0">
+                            <input type="hidden" id="vertex4" value="0,0">
+                            <input type="hidden" id="perspectiveSlider" value="0">
+                        </div>
+                    </details>
+                    <div class="mt-3 text-xs text-gray-500 flex justify-between">
+                        <span>FPS: <span id="videoFPS">-</span></span>
+                        <span>Durata: <span id="videoDuration">-</span></span>
+                    </div>
+                </div>
+
+                <div class="panel-modern">
+                    <div class="panel-header">
+                        <i class="fas fa-download"></i>
+                        <h3>Esporta</h3>
+                    </div>
+                    <button id="createVideoBtn" class="btn-primary mb-3"><i class="fas fa-film"></i>Crea Video MP4</button>
+                    <button id="exportWhatsappBtn" class="btn-success mb-3"><i class="fab fa-whatsapp"></i>Export WhatsApp (HD)</button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="exportJsonBtn" class="bg-gray-100 text-gray-700 py-2 px-3 rounded-lg text-sm hover:bg-gray-200">
+                            <i class="fas fa-download mr-1"></i>Salva
+                        </button>
+                        <label class="bg-gray-100 text-gray-700 py-2 px-3 rounded-lg text-sm hover:bg-gray-200 cursor-pointer text-center">
+                            <input type="file" id="importJsonFile" class="hidden" accept=".json">
+                            <i class="fas fa-upload mr-1"></i>Carica
+                        </label>
+                    </div>
+                    <div id="exportPanel" class="mt-4 hidden">
+                        <div class="text-sm text-gray-600 mb-2" id="exportStatus">Preparazione...</div>
+                        <div class="progress-modern"><div class="progress-modern-fill" id="exportProgress" style="width: 0%"></div></div>
+                    </div>
+                    <div id="qcPanel" class="mt-4 hidden">
+                        <div id="qcResults"></div>
+                        <div class="text-xs mt-2 flex justify-between">
+                            <span>Errore: <span id="qcVertexError">-</span>px</span>
+                            <span>SSIM: <span id="qcSSIM">-</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hidden">
+        <button id="testVideoBtn"></button>
+        <button id="debugVideoBtn"></button>
+        <button id="copyMatrixBtn"></button>
+        <button id="resetVideoBtn"></button>
+        <button id="exportBtn"></button>
+        <button id="panBtn"></button>
+        <button id="zoomBtn"></button>
+        <button id="rotateBtn"></button>
+        <button id="snapBtn"></button>
+        <button id="diagnosticBtn"></button>
+        <button id="gridBtn"></button>
+    </div>
+
+    <script src="js/math-utils.js"></script>
+    <script src="js/video-export.js"></script>
+    <script src="js/demo-helper.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tool buttons
+        document.querySelectorAll('.tool-btn-v2[data-tool]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tool-btn-v2[data-tool]').forEach(b => b.classList.remove('active'));
+                e.target.closest('.tool-btn-v2').classList.add('active');
+                if (window.ledMockupApp) window.ledMockupApp.setActiveTool(e.target.closest('.tool-btn-v2').dataset.tool);
+            });
+        });
+        document.getElementById('resetAllBtn')?.addEventListener('click', () => { if (window.ledMockupApp) { window.ledMockupApp.resetVideoTransform(); window.ledMockupApp.render(); }});
+        document.getElementById('fitAllBtn')?.addEventListener('click', () => { if (window.ledMockupApp) window.ledMockupApp.fitVideo(); });
+        document.getElementById('gridBtnV2')?.addEventListener('click', function() { this.classList.toggle('active'); document.getElementById('gridBtn')?.classList.toggle('active'); if (window.ledMockupApp) window.ledMockupApp.render(); });
+        document.getElementById('bgZoomSlider')?.addEventListener('input', (e) => {
+            document.getElementById('zoomLevel').textContent = e.target.value + '%';
+            if (window.ledMockupApp && window.ledMockupApp.backgroundImage) { window.ledMockupApp.backgroundTransform.scale = parseInt(e.target.value) / 100; window.ledMockupApp.render(); }
+        });
+        const lockAspect = document.getElementById('lockAspectRatio'), scaleX = document.getElementById('videoScaleX'), scaleY = document.getElementById('videoScaleY');
+        scaleX?.addEventListener('input', (e) => { if (lockAspect?.checked) { scaleY.value = e.target.value; document.getElementById('videoScaleYValue').textContent = Math.round(e.target.value * 100) + '%'; } document.getElementById('videoScaleXValue').textContent = Math.round(e.target.value * 100) + '%'; window.ledMockupApp?.updateVideoTransform(); });
+        scaleY?.addEventListener('input', (e) => { if (lockAspect?.checked) { scaleX.value = e.target.value; document.getElementById('videoScaleXValue').textContent = Math.round(e.target.value * 100) + '%'; } document.getElementById('videoScaleYValue').textContent = Math.round(e.target.value * 100) + '%'; window.ledMockupApp?.updateVideoTransform(); });
+        document.getElementById('videoPosX')?.addEventListener('input', () => window.ledMockupApp?.updateVideoTransform());
+        document.getElementById('videoPosY')?.addEventListener('input', () => window.ledMockupApp?.updateVideoTransform());
+        document.getElementById('rotationSlider')?.addEventListener('input', (e) => { document.getElementById('rotationValue').textContent = e.target.value + '°'; window.ledMockupApp?.updateVideoTransform(); });
+        document.getElementById('videoSkewX')?.addEventListener('input', (e) => { document.getElementById('videoSkewXValue').textContent = e.target.value + '°'; window.ledMockupApp?.updateVideoTransform(); });
+        document.getElementById('videoSkewY')?.addEventListener('input', (e) => { document.getElementById('videoSkewYValue').textContent = e.target.value + '°'; window.ledMockupApp?.updateVideoTransform(); });
+        document.getElementById('videoPerspective')?.addEventListener('input', (e) => { document.getElementById('videoPerspectiveValue').textContent = e.target.value; window.ledMockupApp?.updateVideoTransform(); });
+        document.getElementById('exportBtnMain')?.addEventListener('click', () => document.getElementById('exportWhatsappBtn')?.click());
+    });
+    </script>
+</body>
+</html>

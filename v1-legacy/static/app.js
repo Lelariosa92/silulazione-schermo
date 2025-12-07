@@ -1,12 +1,5 @@
 /**
- * LED Mockup App V2 - Applicazione per mockup video di installazioni LED outdoor
- * 
- * OTTIMIZZATO PER CHROME con:
- * - requestAnimationFrame per rendering fluido
- * - GPU acceleration via CSS transforms
- * - Canvas context ottimizzato (desynchronized, willReadFrequently)
- * - Debounced/throttled event handlers
- * - Offscreen canvas per operazioni pesanti
+ * LED Mockup App - Applicazione per mockup video di installazioni LED outdoor
  * 
  * Funzionalità principali:
  * - Gestione foto sfondo con pan, zoom, rotazione, correzione prospettiva
@@ -15,18 +8,6 @@
  * - Quality Control con confronto SSIM
  * - Salvataggio/caricamento progetti JSON
  */
-
-// ========================================
-// CHROME PERFORMANCE OPTIMIZATIONS
-// ========================================
-const CHROME_OPTIMIZATIONS = {
-    useOffscreenCanvas: typeof OffscreenCanvas !== 'undefined',
-    useRequestAnimationFrame: true,
-    targetFPS: 60,
-    frameInterval: 1000 / 60,
-    lastFrameTime: 0,
-    renderPending: false
-};
 
 // ========================================
 // STATO GLOBALE PERSISTENTE (Cross-Browser Fix)
@@ -60,44 +41,10 @@ const throttle = (fn, ms) => {
     };
 };
 
-// Debounce per eventi che devono aspettare
-const debounce = (fn, ms) => {
-    let timeoutId;
-    return (...args) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => fn(...args), ms);
-    };
-};
-
-// Request Animation Frame with fallback
-const requestFrame = (callback) => {
-    if (CHROME_OPTIMIZATIONS.useRequestAnimationFrame) {
-        return requestAnimationFrame(callback);
-    }
-    return setTimeout(callback, CHROME_OPTIMIZATIONS.frameInterval);
-};
-
-const cancelFrame = (id) => {
-    if (CHROME_OPTIMIZATIONS.useRequestAnimationFrame) {
-        return cancelAnimationFrame(id);
-    }
-    return clearTimeout(id);
-};
-
 class LEDMockupApp {
     constructor() {
         this.canvas = document.getElementById('mainCanvas');
-        
-        // CHROME OPTIMIZATION: Context con opzioni ottimizzate
-        this.ctx = this.canvas.getContext('2d', {
-            alpha: false,           // No transparency = faster
-            desynchronized: true,   // Chrome: reduce latency
-            willReadFrequently: false // Optimize for write-heavy operations
-        });
-        
-        // Animation frame tracking
-        this.animationFrameId = null;
-        this.isAnimating = false;
+        this.ctx = this.canvas.getContext('2d');
         
         // Stato applicazione
         this.backgroundImage = null;
@@ -137,84 +84,11 @@ class LEDMockupApp {
         // CROSS-BROWSER FIX: Inizializza canvas con dimensioni reali
         this.setupCanvasDimensions();
         
-        // CHROME: Apply GPU acceleration hints
-        this.applyGPUAcceleration();
-        
         this.initializeEventListeners();
-        
-        // Use requestAnimationFrame for initial render
-        this.scheduleRender();
+        this.render();
         
         // Inizializza stato persistente
         this.loadPersistedState();
-        
-        // Start animation loop for video playback
-        this.startAnimationLoop();
-    }
-    
-    /**
-     * CHROME OPTIMIZATION: Apply GPU acceleration CSS hints
-     */
-    applyGPUAcceleration() {
-        // Force GPU layer creation
-        this.canvas.style.transform = 'translateZ(0)';
-        this.canvas.style.backfaceVisibility = 'hidden';
-        this.canvas.style.perspective = '1000px';
-        
-        // Optimize for animations
-        this.canvas.style.willChange = 'transform, contents';
-        
-        console.log('🚀 GPU acceleration hints applied');
-    }
-    
-    /**
-     * CHROME OPTIMIZATION: Schedule render with requestAnimationFrame
-     */
-    scheduleRender() {
-        if (CHROME_OPTIMIZATIONS.renderPending) return;
-        
-        CHROME_OPTIMIZATIONS.renderPending = true;
-        
-        requestFrame(() => {
-            CHROME_OPTIMIZATIONS.renderPending = false;
-            this.render();
-        });
-    }
-    
-    /**
-     * CHROME OPTIMIZATION: Animation loop for smooth video playback
-     */
-    startAnimationLoop() {
-        if (this.isAnimating) return;
-        this.isAnimating = true;
-        
-        const animate = (timestamp) => {
-            if (!this.isAnimating) return;
-            
-            // Only render if video is playing
-            if (this.videoElement && !this.videoElement.paused && this.videoElement.readyState >= 2) {
-                // Throttle to target FPS
-                if (timestamp - CHROME_OPTIMIZATIONS.lastFrameTime >= CHROME_OPTIMIZATIONS.frameInterval) {
-                    CHROME_OPTIMIZATIONS.lastFrameTime = timestamp;
-                    this.render();
-                }
-            }
-            
-            this.animationFrameId = requestFrame(animate);
-        };
-        
-        this.animationFrameId = requestFrame(animate);
-    }
-    
-    /**
-     * Stop animation loop
-     */
-    stopAnimationLoop() {
-        this.isAnimating = false;
-        if (this.animationFrameId) {
-            cancelFrame(this.animationFrameId);
-            this.animationFrameId = null;
-        }
     }
 
     /**
